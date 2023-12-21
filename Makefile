@@ -4,3 +4,5 @@ build:
 	mv main cmd
 run: build
 	./cmd/main
+test:
+	go test ./... -count=1

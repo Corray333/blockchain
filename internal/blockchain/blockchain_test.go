@@ -8,40 +8,31 @@ import (
 func TestNewBlock(t *testing.T) {
 	// Arrange
 	t1 := Transaction{
-		Inputs: []Input{
-			{Hash: [32]byte{}, ID: 0},
-			{Hash: [32]byte{}, ID: 1},
+		input: [32]byte{},
+		output: Output{
+			pkh:   [20]byte{2, 3, 4},
+			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
-		Outputs: []Output{
-			{PKH: [20]byte{}, Amount: 10},
-			{PKH: [20]byte{}, Amount: 3},
-		},
-		Sign:      [32]byte{},
-		PublicKey: [32]byte{},
+		sign:      [32]byte{},
+		publicKey: [32]byte{},
 	}
 	t2 := Transaction{
-		Inputs: []Input{
-			{Hash: [32]byte{}, ID: 0},
-			{Hash: [32]byte{}, ID: 1},
+		input: [32]byte{},
+		output: Output{
+			pkh:   [20]byte{2, 3, 4},
+			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
-		Outputs: []Output{
-			{PKH: [20]byte{}, Amount: 12},
-			{PKH: [20]byte{}, Amount: 3},
-		},
-		Sign:      [32]byte{},
-		PublicKey: [32]byte{},
+		sign:      [32]byte{},
+		publicKey: [32]byte{},
 	}
 	t3 := Transaction{
-		Inputs: []Input{
-			{Hash: [32]byte{}, ID: 0},
-			{Hash: [32]byte{}, ID: 1},
+		input: [32]byte{},
+		output: Output{
+			pkh:   [20]byte{2, 3, 4},
+			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
-		Outputs: []Output{
-			{PKH: [20]byte{}, Amount: 10},
-			{PKH: [20]byte{}, Amount: 6},
-		},
-		Sign:      [32]byte{},
-		PublicKey: [32]byte{},
+		sign:      [32]byte{},
+		publicKey: [32]byte{},
 	}
 	t1h := t1.Hash()
 	t2h := t2.Hash()
@@ -54,7 +45,7 @@ func TestNewBlock(t *testing.T) {
 	b := NewBlock([32]byte{}, &[]Transaction{t1, t2, t3})
 
 	// Assert
-	if b.Root != s3 {
+	if b.root != s3 {
 		t.Error("Wrong merkle root.")
 	}
 }
