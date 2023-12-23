@@ -1,3 +1,4 @@
 .env
 .gitignore
+store
 cmd/main

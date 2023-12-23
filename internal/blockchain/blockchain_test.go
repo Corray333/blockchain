@@ -49,3 +49,39 @@ func TestNewBlock(t *testing.T) {
 		t.Error("Wrong merkle root.")
 	}
 }
+
+func TestBock_Save(t *testing.T) {
+	// Arrange
+	t1 := Transaction{
+		input: [32]byte{},
+		output: Output{
+			pkh:   [20]byte{2, 3, 4},
+			token: Token{[32]byte{}, make([]byte, 1024)},
+		},
+		sign:      [32]byte{},
+		publicKey: [32]byte{},
+	}
+	t2 := Transaction{
+		input: [32]byte{},
+		output: Output{
+			pkh:   [20]byte{2, 3, 4},
+			token: Token{[32]byte{}, make([]byte, 1024)},
+		},
+		sign:      [32]byte{},
+		publicKey: [32]byte{},
+	}
+	t3 := Transaction{
+		input: [32]byte{},
+		output: Output{
+			pkh:   [20]byte{2, 3, 4},
+			token: Token{[32]byte{}, make([]byte, 1024)},
+		},
+		sign:      [32]byte{},
+		publicKey: [32]byte{},
+	}
+	// Act
+	b := NewBlock([32]byte{}, &[]Transaction{t1, t2, t3})
+
+	// Assert
+	b.Save()
+}
