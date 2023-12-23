@@ -71,7 +71,7 @@ func GenerateSeedPhrase(seed string) string {
 	hash := sha256.Sum256([]byte(seed))
 	firstByte := strings.Replace(fmt.Sprintf("%b", hash[:4]), " ", "", -1)[1:5]
 	seed = firstByte + seed
-	f, err := os.ReadFile("../configs/wordlist.wl")
+	f, err := os.ReadFile("../configs/wordlist.txt")
 	if err != nil {
 		slog.Error(fmt.Sprintf("error while reading wordlist: %s", err.Error()))
 		panic(err)
@@ -94,16 +94,11 @@ func GenerateSeedPhraseFromSkratch() string {
 	return GenerateSeedPhrase(seed)
 }
 
-func GenerateHmac() {
-	h := hmac.New(sha512.New, []byte{})
-	hash := h.Sum(nil)
-	fmt.Printf("%b", hash)
-}
 func GenerateSecretNumberBySeedPhrase(phrase string) string {
 	seed := ""
 	// recPhrase := strings.Split(os.Getenv("RECOVERY_PHRASE"), " ")
 	recPhrase := strings.Split(phrase, " ")
-	f, err := os.ReadFile("../configs/wordlist.wl")
+	f, err := os.ReadFile("../configs/wordlist.txt")
 	if err != nil {
 		slog.Error(fmt.Sprintf("error while reading wordlist: %s", err.Error()))
 		panic(err)
