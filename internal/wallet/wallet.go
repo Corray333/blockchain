@@ -9,6 +9,7 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"math/rand"
 	"os"
 	"slices"
@@ -17,15 +18,50 @@ import (
 )
 
 type Wallet struct {
-	key *ecdsa.PrivateKey
-	PHK [20]byte
+	key       *ecdsa.PrivateKey
+	publicKey []byte
+	pkh       [20]byte
+}
+
+func (w Wallet) GetKey() *ecdsa.PrivateKey {
+	return w.key
+}
+func (w Wallet) GetPHK() [20]byte {
+	return w.pkh
 }
 
 var wallet Wallet
 
-func GetWallet() Wallet {
-	return wallet
+func GetWallet() struct {
+	Key       *ecdsa.PrivateKey
+	PublicKey []byte
+	PKH       [20]byte
+} {
+	return struct {
+		Key       *ecdsa.PrivateKey
+		PublicKey []byte
+		PKH       [20]byte
+	}{
+		Key:       wallet.key,
+		PublicKey: wallet.publicKey,
+		PKH:       wallet.pkh,
+	}
 }
+
+// func InitializeWallet() {
+// 	seed := GenerateSecretNumberBySeedPhrase(os.Getenv("SEED_PHRASE"))
+// 	h := hmac.New(sha512.New, []byte(seed))
+// 	hash := h.Sum(nil)
+// 	// TODO: learn, how to fix that
+// 	// GenerateKey function is changed!!! First line, which changes private key, is delited
+// 	fmt.Println(hash[:32])
+// 	privateKeyPEM, _ := hex.DecodeString(fmt.Sprintf("%x", hash[:32]))
+// 	fmt.Println(privateKeyPEM)
+// 	block, _ := pem.Decode(privateKeyPEM)
+// 	fmt.Println(block)
+// 	privateKey, _ := x509.ParseECPrivateKey(block.Bytes)
+// 	wallet.key = privateKey
+// }
 
 func InitializeWallet() {
 	seed := GenerateSecretNumberBySeedPhrase(os.Getenv("SEED_PHRASE"))
@@ -39,6 +75,15 @@ func InitializeWallet() {
 		panic(err)
 	}
 	wallet.key = private
+	public := fmt.Sprintf("%x", private.X)
+	if private.Y.Mod(private.Y, big.NewInt(2)) == big.NewInt(0) {
+		public = "0" + public
+	} else {
+		public = "1" + public
+	}
+	wallet.publicKey = []byte(public)
+	publicHash := sha256.Sum256(wallet.publicKey)
+	copy(wallet.pkh[:], publicHash[:])
 }
 
 func GenerateSecretNumberBySeedPhrase(phrase string) string {
