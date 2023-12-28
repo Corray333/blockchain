@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,16 +10,78 @@ import (
 )
 
 type Blockchain struct {
+	blockList       [][32]byte
 	transactionPool []Transaction
+}
+
+func NewBlockchain() *Blockchain {
+	return &Blockchain{
+		transactionPool: []Transaction{},
+	}
+}
+
+func (b *Blockchain) NewTransaction(data []byte) {
+	type transactionRef struct {
+		Input  [32]byte `json:"input"`
+		Output struct {
+			Pkh   [20]byte `json:"pkh"`
+			Token struct {
+				Hash [32]byte `json:"hash"`
+				Data []byte   `json:"data"`
+			}
+		}
+		Sign      [32]byte `json:"sign"`
+		PublicKey []byte   `json:"public_key"`
+	}
+	var txRef transactionRef
+	err := json.Unmarshal(data, &txRef)
+	if err != nil {
+		slog.Error("error while reading transaction: " + err.Error())
+	}
+
+	tx := Transaction{
+		input: txRef.Input,
+		output: Output{
+			pkh: txRef.Output.Pkh,
+			token: Token{
+				hash: txRef.Output.Token.Hash,
+				data: txRef.Output.Token.Data,
+			},
+		},
+		sign:      txRef.Sign,
+		publicKey: txRef.PublicKey,
+	}
+
+	// TODO: verify signature
+
+	b.transactionPool = append(b.transactionPool, tx)
+}
+
+// CreateBlock creates a new block
+func (b *Blockchain) CreateBlock() *Block {
+	block := &Block{
+		prev:         b.blockList[len(b.blockList)],
+		root:         [32]byte{},
+		transactions: make([]Transaction, len(b.transactionPool)),
+		timestamp:    time.Now(),
+	}
+	copy(block.transactions, b.transactionPool)
+	b.transactionPool = []Transaction{}
+	hashes := make([][32]byte, len(b.transactionPool))
+	for i := range hashes {
+		hashes[i] = block.transactions[i].Hash()
+	}
+	block.root = GetMerkleRoot(hashes)
+	return block
 }
 
 // Block structure represents a block in a blockchain
 type Block struct {
-	prev         [32]byte
-	root         [32]byte
-	transactions []Transaction
-	timestamp    time.Time
-	creator      [20]byte
+	prev          [32]byte
+	root          [32]byte
+	transactions  []Transaction
+	timestamp     time.Time
+	creatorAdress string
 }
 
 // Block.Save function saves a block in store folder
@@ -54,25 +117,6 @@ func GetMerkleRoot(hashes [][32]byte) [32]byte {
 	return GetMerkleRoot(hashes[:len(hashes)/2])
 }
 
-// NewBlock creates a new block
-func NewBlock(prev [32]byte, transactionPool *[]Transaction) *Block {
-	length := len(*transactionPool)
-	b := &Block{
-		prev:         prev,
-		root:         [32]byte{},
-		transactions: make([]Transaction, length),
-		timestamp:    time.Now(),
-	}
-	copy(b.transactions, *transactionPool)
-	*transactionPool = []Transaction{}
-	hashes := make([][32]byte, length)
-	for i := range hashes {
-		hashes[i] = b.transactions[i].Hash()
-	}
-	b.root = GetMerkleRoot(hashes)
-	return b
-}
-
 // Block.String turns block into a string, placing
 func (b Block) String() string {
 	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\ntimestamp: %s\n", b.prev[:], b.root[:], b.timestamp.String())
@@ -103,7 +147,7 @@ type Transaction struct {
 	input     [32]byte
 	output    Output
 	sign      [32]byte
-	publicKey [32]byte
+	publicKey []byte
 }
 
 // Transaction.String turns Transaction into a string

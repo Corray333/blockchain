@@ -14,7 +14,7 @@ func TestNewBlock(t *testing.T) {
 			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
 		sign:      [32]byte{},
-		publicKey: [32]byte{},
+		publicKey: []byte{},
 	}
 	t2 := Transaction{
 		input: [32]byte{},
@@ -23,7 +23,7 @@ func TestNewBlock(t *testing.T) {
 			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
 		sign:      [32]byte{},
-		publicKey: [32]byte{},
+		publicKey: []byte{},
 	}
 	t3 := Transaction{
 		input: [32]byte{},
@@ -32,7 +32,7 @@ func TestNewBlock(t *testing.T) {
 			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
 		sign:      [32]byte{},
-		publicKey: [32]byte{},
+		publicKey: []byte{},
 	}
 	t1h := t1.Hash()
 	t2h := t2.Hash()
@@ -59,7 +59,7 @@ func TestBock_Save(t *testing.T) {
 			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
 		sign:      [32]byte{},
-		publicKey: [32]byte{},
+		publicKey: []byte{},
 	}
 	t2 := Transaction{
 		input: [32]byte{},
@@ -68,7 +68,7 @@ func TestBock_Save(t *testing.T) {
 			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
 		sign:      [32]byte{},
-		publicKey: [32]byte{},
+		publicKey: []byte{},
 	}
 	t3 := Transaction{
 		input: [32]byte{},
@@ -77,7 +77,7 @@ func TestBock_Save(t *testing.T) {
 			token: Token{[32]byte{}, make([]byte, 1024)},
 		},
 		sign:      [32]byte{},
-		publicKey: [32]byte{},
+		publicKey: []byte{},
 	}
 	// Act
 	b := NewBlock([32]byte{}, &[]Transaction{t1, t2, t3})
