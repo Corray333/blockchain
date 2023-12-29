@@ -2,11 +2,13 @@ package blockchain
 
 import (
 	"crypto/sha256"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
+
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 type Blockchain struct {
@@ -16,45 +18,25 @@ type Blockchain struct {
 
 func NewBlockchain() *Blockchain {
 	return &Blockchain{
+		blockList:       [][32]byte{},
 		transactionPool: []Transaction{},
 	}
 }
 
-func (b *Blockchain) NewTransaction(data []byte) {
-	type transactionRef struct {
-		Input  [32]byte `json:"input"`
-		Output struct {
-			Pkh   [20]byte `json:"pkh"`
-			Token struct {
-				Hash [32]byte `json:"hash"`
-				Data []byte   `json:"data"`
-			}
-		}
-		Sign      [32]byte `json:"sign"`
-		PublicKey []byte   `json:"public_key"`
+func (b *Blockchain) PrintTransactions() {
+	for _, t := range b.transactionPool {
+		fmt.Println(t.String())
 	}
-	var txRef transactionRef
-	err := json.Unmarshal(data, &txRef)
-	if err != nil {
-		slog.Error("error while reading transaction: " + err.Error())
+}
+
+func (b *Blockchain) NewTransaction(tx Transaction) error {
+	ok := secp256k1.VerifySignature(tx.publicKey, tx.output.token.hash[:], tx.sign)
+	if !ok {
+		slog.Info("error while verifying transaction from " + fmt.Sprintf("%x", tx.input))
+		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.input))
 	}
-
-	tx := Transaction{
-		input: txRef.Input,
-		output: Output{
-			pkh: txRef.Output.Pkh,
-			token: Token{
-				hash: txRef.Output.Token.Hash,
-				data: txRef.Output.Token.Data,
-			},
-		},
-		sign:      txRef.Sign,
-		publicKey: txRef.PublicKey,
-	}
-
-	// TODO: verify signature
-
 	b.transactionPool = append(b.transactionPool, tx)
+	return nil
 }
 
 // CreateBlock creates a new block
@@ -146,13 +128,28 @@ func (o Output) String() string {
 type Transaction struct {
 	input     [32]byte
 	output    Output
-	sign      [32]byte
+	sign      []byte
 	publicKey []byte
+}
+
+func NewTransaction(input [32]byte, pkh [20]byte, hash [32]byte, data []byte, sign []byte, publicKey []byte) Transaction {
+	return Transaction{
+		input: [32]byte{},
+		output: Output{
+			pkh: pkh,
+			token: Token{
+				hash: hash,
+				data: data,
+			},
+		},
+		sign:      sign,
+		publicKey: publicKey,
+	}
 }
 
 // Transaction.String turns Transaction into a string
 func (tx Transaction) String() string {
-	return fmt.Sprintf("input: %s, output: %s, sign: %x, public key: %x", tx.input, tx.output.String(), tx.sign[:], tx.publicKey[:])
+	return fmt.Sprintf("input: %s\noutput: %s\nsign: %x\npublic key: %x", tx.input, tx.output.String(), tx.sign, tx.publicKey[:])
 }
 
 // Transaction.Hash returns the hash of the transaction

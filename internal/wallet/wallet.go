@@ -1,15 +1,11 @@
 package wallet
 
 import (
-	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
 	"log/slog"
-	"math/big"
 	"math/rand"
 	"os"
 	"slices"
@@ -17,62 +13,44 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 // Wallet structure represents a wallet in network
 type Wallet struct {
-	key       *ecdsa.PrivateKey
-	publicKey string
-	pkh       [20]byte
-	address   string
+	privateKey [32]byte
+	publicKey  [65]byte
+	pkh        [20]byte
+	address    string
 }
 
 // Wallet.GetKey method returns a private key of the wallet
-func (w Wallet) GetKey() *ecdsa.PrivateKey {
-	return w.key
+func GetKey() []byte {
+	return wallet.privateKey[:]
 }
 
-func (w Wallet) GetPublicKey() string {
-	return w.publicKey
+func GetPublicKey() []byte {
+	r := make([]byte, len(wallet.publicKey))
+	copy(r, wallet.publicKey[:])
+	return r
 }
 
 // Wallet.GetPKH method returns a public key hash of the wallet
-func (w Wallet) GetPKH() [20]byte {
-	return w.pkh
+func GetPKH() [20]byte {
+	return wallet.pkh
 }
 
-func (w Wallet) GetAddress() string {
-	return w.address
+func GetAddress() string {
+	return wallet.address
 }
 
 func (w Wallet) String() string {
-	return fmt.Sprintf("Private key:\t%x\nPublic key:\t%s\nPKH:    \t%x\nAddress:\t%s", w.key.D, w.publicKey, w.pkh, w.address)
+	return fmt.Sprintf("Private key:\t%x\nPublic key:\t%x\nPKH:    \t%x\nAddress:\t%s", w.privateKey, w.publicKey, w.pkh, w.address)
 }
 
 // wallet is a global variable containing wallet of the node
 var wallet Wallet
 
-// GetWallet function returns a global struct variable
-//
-//	func GetWallet() struct {
-//		Key       *ecdsa.PrivateKey
-//		PublicKey []byte
-//		PKH       [20]byte
-//		Address   string
-//	} {
-//
-//		return struct {
-//			Key       *ecdsa.PrivateKey
-//			PublicKey []byte
-//			PKH       [20]byte
-//			Address   string
-//		}{
-//			Key:       wallet.key,
-//			PublicKey: wallet.publicKey,
-//			PKH:       wallet.pkh,
-//			Address:   wallet.address,
-//		}
-//	}
 func GetWallet() Wallet {
 	return wallet
 }
@@ -82,24 +60,28 @@ func InitializeWallet() {
 	seed := GenerateSecretNumberBySeedPhrase(os.Getenv("SEED_PHRASE"))
 	h := hmac.New(sha512.New, []byte(seed))
 	hash := h.Sum(nil)
-	pri := hash[:32]
-	// TODO: learn, how to fix that
-	// GenerateKey function is changed!!! First line, which changes private key, is delited
-	private, err := ecdsa.GenerateKey(elliptic.P256(), bytes.NewReader(pri))
+	copy(wallet.privateKey[:], hash)
+	msg := sha256.Sum256(nil)
+	sig, err := secp256k1.Sign(msg[:], hash[:32])
 	if err != nil {
-		panic(err)
+		slog.Error("error while generating private and public keys: " + err.Error())
+		panic("error while generating private and public keys: " + err.Error())
 	}
-	wallet.key = private
-	public := fmt.Sprintf("%x", private.X)
+	pub, err := secp256k1.RecoverPubkey(msg[:], sig)
+	if err != nil {
+		slog.Error("error while generating private and public keys: " + err.Error())
+		panic("error while generating private and public keys: " + err.Error())
+	}
+	ok := secp256k1.VerifySignature(pub, msg[:], sig[:len(sig)-1])
+	if !ok {
+		slog.Error("error while generating private and public keys")
+		panic("error while generating private and public keys")
+	}
+	copy(wallet.publicKey[:], pub)
 
-	if private.Y.Mod(private.Y, big.NewInt(2)) == big.NewInt(0) {
-		public = "0" + public
-	} else {
-		public = "1" + public
-	}
-	wallet.publicKey = public
-	publicHash := sha256.Sum256([]byte(wallet.publicKey))
+	publicHash := sha256.Sum256(wallet.publicKey[:])
 	copy(wallet.pkh[:], publicHash[:])
+
 	wallet.address = GenerateWalletAddress(wallet.pkh)
 }
 
