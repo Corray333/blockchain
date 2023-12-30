@@ -25,10 +25,11 @@ type Wallet struct {
 }
 
 // Wallet.GetKey method returns a private key of the wallet
-func GetKey() []byte {
+func GetPrivateKey() []byte {
 	return wallet.privateKey[:]
 }
 
+// Wallet.GetPublicKey method returns a public key of the wallet
 func GetPublicKey() []byte {
 	r := make([]byte, len(wallet.publicKey))
 	copy(r, wallet.publicKey[:])
@@ -40,6 +41,7 @@ func GetPKH() [20]byte {
 	return wallet.pkh
 }
 
+// Wallet.GetAddress method returns an address of the wallet
 func GetAddress() string {
 	return wallet.address
 }
