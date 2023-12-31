@@ -1,0 +1,3 @@
+portHTTP: 3000
+portP2P:  3001
+level: "debug" # "debug", "prod"

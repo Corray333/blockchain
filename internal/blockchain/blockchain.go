@@ -8,9 +8,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Corray333/blockchain/internal/wallet"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
@@ -75,6 +77,7 @@ func (b *Blockchain) CreateBlock() *Block {
 		hashes[i] = block.transactions[i].Hash()
 	}
 	block.root = GetMerkleRoot(hashes)
+	block.creatorAdress = wallet.GetAddress()
 	return block
 }
 
@@ -92,17 +95,14 @@ func (b Block) Save() error {
 	hash := b.Hash()
 	file, err := os.Create(fmt.Sprintf("../store/%x.blk", hash))
 	if err != nil {
-		// TODO: choose to log error emediately or just to return it
-		slog.Error(fmt.Sprintf(`error while saving new block with hash "%x": %s`, hash, err.Error()))
 		return err
 	}
-	res := fmt.Sprintf("%x|%x|%s|%x\n", b.prev, b.root, b.timestamp.String(), b.creatorAdress)
+	res := fmt.Sprintf("%x|%x|%d|%s\n", b.prev, b.root, b.timestamp.UnixMicro(), b.creatorAdress)
 	// TODO: save transactions with compressed public keys
 	res += b.GetTransactionsString()
 	n, err := file.Write([]byte(res))
 	if err != nil {
 		// TODO: choose to log error emediately or just to return it
-		slog.Error(fmt.Sprintf(`error while saving new block with hash "%x": %e`, hash, err))
 		return err
 	}
 	// TODO: save creator adress
@@ -110,67 +110,61 @@ func (b Block) Save() error {
 	return nil
 }
 
-func LoadBlock(hash [32]byte) *Block {
+func LoadBlock(hash [32]byte) (*Block, error) {
 	file, err := os.Open(fmt.Sprintf("../store/%x.blk", hash))
 	if err != nil {
-		slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-		return nil
+		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 	}
 	var block Block
 	data, err := io.ReadAll(file)
 	if err != nil {
-		slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-		return nil
+		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 	}
 	splitted := strings.Split(string(data), "\n")
 	blockData := strings.Split(splitted[0], "|")
 	transactions := strings.Split(splitted[1], "|")
 	prev, err := hex.DecodeString(blockData[0])
 	if err != nil {
-		slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-		return nil
+		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 	}
 	copy(block.prev[:], prev)
 	root, err := hex.DecodeString(blockData[1])
 	if err != nil {
-		slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-		return nil
+		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 	}
 	copy(block.root[:], root)
-	block.timestamp, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", blockData[2])
+	microSeconds, err := strconv.ParseInt(blockData[2], 10, 64)
 	if err != nil {
-		slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-		return nil
+		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+	}
+	block.timestamp = time.UnixMicro(microSeconds)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 	}
 	block.creatorAdress = blockData[3]
 	block.transactions = []Transaction{}
 	// TODO: load transactions
-	for i := 0; i < len(transactions); i += 6 {
+	for i := 0; i < len(transactions)-1; i += 6 {
 		var transaction Transaction
 		input, err := hex.DecodeString(transactions[i])
 		if err != nil {
-			slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-			return nil
+			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 		}
 		pkh, err := hex.DecodeString(transactions[i+1])
 		if err != nil {
-			slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-			return nil
+			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 		}
 		hash, err := hex.DecodeString(transactions[i+2])
 		if err != nil {
-			slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-			return nil
+			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 		}
 		pub, err := hex.DecodeString(transactions[i+4])
 		if err != nil {
-			slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-			return nil
+			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 		}
 		sign, err := hex.DecodeString(transactions[i+5])
 		if err != nil {
-			slog.Error(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
-			return nil
+			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
 		}
 		copy(transaction.input[:], input)
 		copy(transaction.output.pkh[:], pkh)
@@ -183,7 +177,7 @@ func LoadBlock(hash [32]byte) *Block {
 		block.transactions = append(block.transactions, transaction)
 	}
 	// TODO: check data format
-	return &block
+	return &block, nil
 }
 
 // GetMerkleRoot returns the merkle root got by transactions hashes
@@ -205,7 +199,7 @@ func GetMerkleRoot(hashes [][32]byte) [32]byte {
 
 // Block.String turns block into a string, placing
 func (b Block) String() string {
-	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\ntimestamp: %s\n", b.prev[:], b.root[:], b.timestamp.String())
+	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\ntimestamp: %s\ncreator: %s\n", b.prev[:], b.root[:], b.timestamp.String(), b.creatorAdress)
 }
 
 // Block.PrintTransactions prints all transactions in transaction pool
