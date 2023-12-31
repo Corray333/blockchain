@@ -113,33 +113,33 @@ func (b Block) Save() error {
 func LoadBlock(hash [32]byte) (*Block, error) {
 	file, err := os.Open(fmt.Sprintf("../store/%x.blk", hash))
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 	}
 	var block Block
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 	}
 	splitted := strings.Split(string(data), "\n")
 	blockData := strings.Split(splitted[0], "|")
 	transactions := strings.Split(splitted[1], "|")
 	prev, err := hex.DecodeString(blockData[0])
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 	}
 	copy(block.prev[:], prev)
 	root, err := hex.DecodeString(blockData[1])
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 	}
 	copy(block.root[:], root)
 	microSeconds, err := strconv.ParseInt(blockData[2], 10, 64)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 	}
 	block.timestamp = time.UnixMicro(microSeconds)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 	}
 	block.creatorAdress = blockData[3]
 	block.transactions = []Transaction{}
@@ -148,23 +148,23 @@ func LoadBlock(hash [32]byte) (*Block, error) {
 		var transaction Transaction
 		input, err := hex.DecodeString(transactions[i])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		pkh, err := hex.DecodeString(transactions[i+1])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		hash, err := hex.DecodeString(transactions[i+2])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		pub, err := hex.DecodeString(transactions[i+4])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		sign, err := hex.DecodeString(transactions[i+5])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(`error while loading block with hash "%x": %s`, hash, err.Error()))
+			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		copy(transaction.input[:], input)
 		copy(transaction.output.pkh[:], pkh)
