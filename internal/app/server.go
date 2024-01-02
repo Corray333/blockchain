@@ -1,6 +1,8 @@
 package app
 
 import (
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"net"
 	"strconv"
@@ -43,41 +45,57 @@ func (a *App) handleConnection(conn net.Conn) {
 		slog.Error("error while reading from connection:" + err.Error())
 		return
 	}
-	err = a.Blockchain.HandleRequest(string(buffer[:n]))
+	err = a.HandleRequest(conn.LocalAddr().String(), buffer[:n])
 	if err != nil {
 		slog.Error("error while handling request:" + err.Error())
 		return
 	}
 }
 
-func (a *App) ConnectToNetwork() error {
-bootNodesLoop:
+func (a *App) ConnectWithBootnodes() error {
 	for _, v := range a.Config.BootNodes {
-		conn, err := net.Dial("tcp", v)
+		err := a.ConnectDirectly(v)
 		if err != nil {
-			slog.Error("error while connecting to network:" + err.Error())
+			slog.Error(err.Error())
 			continue
 		}
-		// TODO: make list of query types with codes
-		// Code 01 is for network-service commands
-		conn.Write([]byte(`"01", "connect to network"`))
-		buf := make([]byte, 4096)
-		k := 0
-		for {
-			n, err := conn.Read(buf[k:])
-			if err != nil {
-				slog.Error("error while reading from boot node " + v + ": " + err.Error())
-				continue bootNodesLoop
-			}
-			splited := strings.Split(string(buf[:n]), "|")
-			for _, v := range splited {
-				a.ServerP2P.connections[v] = nil
-			}
-			if len(splited[len(splited)-1]) < 20 {
-				delete(a.ServerP2P.connections, splited[len(splited)-1])
-				k = len(splited[len(splited)-1])
-			}
+		return nil
+	}
+	return errors.New("error while connecting to network: all the boot nodes are unavalible, try to connect directly")
+}
+
+func (a *App) ConnectDirectly(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return errors.New("error while connecting to network:" + err.Error())
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(time.Second * 5))
+	// TODO: make list of query types with codes
+	// Code 01 is for network-service commands
+	query := map[string]interface{}{
+		"type":  "01",
+		"query": "01",
+	}
+	bytesQuery, err := json.Marshal(query)
+	if err != nil {
+		return errors.New("error while connecting to network:" + err.Error())
+	}
+	conn.Write(bytesQuery)
+	buf := make([]byte, 4096)
+	k := 0
+	for {
+		n, err := conn.Read(buf[k:])
+		if err != nil {
+			return errors.New("error while connecting to network:" + err.Error())
+		}
+		splited := strings.Split(string(buf[:n]), "|")
+		for _, v := range splited {
+			a.ServerP2P.connections[v] = nil
+		}
+		if len(splited[len(splited)-1]) < 20 {
+			delete(a.ServerP2P.connections, splited[len(splited)-1])
+			k = len(splited[len(splited)-1])
 		}
 	}
-	return nil
 }

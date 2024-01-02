@@ -43,6 +43,7 @@ func LoadConfig() (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error while creating log file: %s", err.Error())
 		}
+		defer file.Close()
 		log = slog.New(
 			slog.NewJSONHandler(file, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
