@@ -13,6 +13,8 @@ import (
 type ServerP2P struct {
 	port        int
 	connections map[string]net.Conn
+	masterNode  net.Conn
+	isMaster    bool
 }
 
 type ServerHTTP struct {
@@ -45,7 +47,7 @@ func (a *App) handleConnection(conn net.Conn) {
 		slog.Error("error while reading from connection:" + err.Error())
 		return
 	}
-	err = a.HandleRequest(conn.LocalAddr().String(), buffer[:n])
+	err = a.HandleRequest(conn, buffer[:n])
 	if err != nil {
 		slog.Error("error while handling request:" + err.Error())
 		return
