@@ -6,15 +6,44 @@ import (
 	"log/slog"
 	"net"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/Corray333/blockchain/internal/wallet"
 )
+
+const (
+	Follower = iota
+	Candidate
+	Master
+)
+
+type Node struct {
+	status uint8
+	wallet string
+}
+
+func (n *Node) GetWallet() string {
+	return n.wallet
+}
+
+func (n *Node) SetWallet(address string) {
+	n.wallet = address
+}
+
+func (n *Node) SetStatus(status uint8) {
+	n.status = status
+}
+
+func (n *Node) GetStatus() uint8 {
+	return n.status
+}
 
 type ServerP2P struct {
 	port        int
-	connections map[string]net.Conn
+	connections map[string]Node
 	masterNode  net.Conn
-	isMaster    bool
+	status      uint8
+	heartbeat   bool
 }
 
 type ServerHTTP struct {
@@ -39,7 +68,6 @@ func (a *App) Run() {
 }
 
 func (a *App) handleConnection(conn net.Conn) {
-	a.ServerP2P.connections[conn.RemoteAddr().String()] = conn
 	slog.Info("new connection from " + conn.RemoteAddr().String())
 	buffer := make([]byte, 1024)
 	n, err := conn.Read(buffer)
@@ -72,32 +100,33 @@ func (a *App) ConnectDirectly(addr string) error {
 		return errors.New("error while connecting to network:" + err.Error())
 	}
 	defer conn.Close()
-	conn.SetDeadline(time.Now().Add(time.Second * 5))
-	// TODO: make list of query types with codes
 	// Code 01 is for network-service commands
 	query := map[string]interface{}{
-		"type":  "01",
-		"query": "01",
+		"query":  "01",
+		"wallet": wallet.GetAddress(),
 	}
 	bytesQuery, err := json.Marshal(query)
 	if err != nil {
 		return errors.New("error while connecting to network:" + err.Error())
 	}
-	conn.Write(bytesQuery)
-	buf := make([]byte, 4096)
-	k := 0
-	for {
-		n, err := conn.Read(buf[k:])
-		if err != nil {
-			return errors.New("error while connecting to network:" + err.Error())
-		}
-		splited := strings.Split(string(buf[:n]), "|")
-		for _, v := range splited {
-			a.ServerP2P.connections[v] = nil
-		}
-		if len(splited[len(splited)-1]) < 20 {
-			delete(a.ServerP2P.connections, splited[len(splited)-1])
-			k = len(splited[len(splited)-1])
-		}
+	if _, err := conn.Write(bytesQuery); err != nil {
+		return errors.New("error while connecting to network:" + err.Error())
 	}
+	return nil
+	// buf := make([]byte, 4096)
+	// k := 0
+	// for {
+	// 	n, err := conn.Read(buf[k:])
+	// 	if err != nil {
+	// 		return errors.New("error while connecting to network:" + err.Error())
+	// 	}
+	// 	splited := strings.Split(string(buf[:n]), "|")
+	// 	for _, v := range splited {
+	// 		a.ServerP2P.connections[v] = nil
+	// 	}
+	// 	if len(splited[len(splited)-1]) < 20 {
+	// 		delete(a.ServerP2P.connections, splited[len(splited)-1])
+	// 		k = len(splited[len(splited)-1])
+	// 	}
+	// }
 }
