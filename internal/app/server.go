@@ -22,28 +22,17 @@ type Node struct {
 	wallet string
 }
 
-func (n *Node) GetWallet() string {
-	return n.wallet
-}
-
-func (n *Node) SetWallet(address string) {
-	n.wallet = address
-}
-
-func (n *Node) SetStatus(status uint8) {
-	n.status = status
-}
-
-func (n *Node) GetStatus() uint8 {
-	return n.status
-}
-
 type ServerP2P struct {
-	port        int
-	connections map[string]Node
-	masterNode  net.Conn
-	status      uint8
-	heartbeat   bool
+	port          int
+	connections   map[string]Node
+	masterNode    string
+	currentVote   string
+	votesFor      int
+	votesAgainst  int
+	status        uint8
+	heartbeat     int32
+	walletsBL     map[string]struct{}
+	connectionsBL map[string]struct{}
 }
 
 type ServerHTTP struct {

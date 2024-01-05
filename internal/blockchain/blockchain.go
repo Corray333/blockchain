@@ -36,7 +36,7 @@ func NewBlockchain() *Blockchain {
 func (b *Block) GetTransactionsString() string {
 	res := ""
 	for _, t := range b.transactions {
-		res += fmt.Sprintf("%x|%x|%x|%s|%x|%x|", t.input, t.output.pkh, t.output.token.hash, t.output.token.data, t.publicKey, t.sign)
+		res += fmt.Sprintf("%x|%x|%s|%x|%x|", t.output.pkh, t.output.token.hash, t.output.token.data, t.publicKey, t.sign)
 	}
 	return res
 }
@@ -55,8 +55,7 @@ func (b *Blockchain) PrintTransactions() {
 func (b *Blockchain) NewTransaction(tx Transaction) error {
 	ok := secp256k1.VerifySignature(tx.publicKey, tx.output.token.hash[:], tx.sign)
 	if !ok {
-		slog.Info("error while verifying transaction from " + fmt.Sprintf("%x", tx.input))
-		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.input))
+		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.publicKey))
 	}
 	b.transactionPool = append(b.transactionPool, tx)
 	return nil
@@ -146,10 +145,6 @@ func LoadBlock(hash [32]byte) (*Block, error) {
 	// TODO: load transactions
 	for i := 0; i < len(transactions)-1; i += 6 {
 		var transaction Transaction
-		input, err := hex.DecodeString(transactions[i])
-		if err != nil {
-			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
-		}
 		pkh, err := hex.DecodeString(transactions[i+1])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
@@ -166,7 +161,6 @@ func LoadBlock(hash [32]byte) (*Block, error) {
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
-		copy(transaction.input[:], input)
 		copy(transaction.output.pkh[:], pkh)
 		copy(transaction.output.token.hash[:], hash)
 		transaction.output.token.data = []byte(transactions[i+3])
@@ -234,15 +228,13 @@ func (o Output) String() string {
 
 // Transact structure represents a transaction in blockchain
 type Transaction struct {
-	input     [32]byte
 	output    Output
 	sign      []byte
 	publicKey []byte
 }
 
-func NewTransaction(input [32]byte, pkh [20]byte, hash [32]byte, data []byte, sign []byte, publicKey []byte) Transaction {
+func NewTransaction(pkh [20]byte, hash [32]byte, data []byte, sign []byte, publicKey []byte) Transaction {
 	return Transaction{
-		input: [32]byte{},
 		output: Output{
 			pkh: pkh,
 			token: Token{
@@ -256,7 +248,7 @@ func NewTransaction(input [32]byte, pkh [20]byte, hash [32]byte, data []byte, si
 }
 
 func (tx Transaction) String() string {
-	return fmt.Sprintf("input: %x\noutput: %s\nsign: %x\npublic key: %x", tx.input, tx.output.String(), tx.sign, tx.publicKey[:])
+	return fmt.Sprintf("output: %s\nsign: %x\npublic key: %x", tx.output.String(), tx.sign, tx.publicKey[:])
 }
 
 // Transaction.Hash returns the hash of the transaction

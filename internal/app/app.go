@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/Corray333/blockchain/internal/blockchain"
@@ -13,7 +14,8 @@ import (
 )
 
 const (
-	HeartRate = 3 * time.Second
+	HeartRate    = 2 * time.Second
+	ElectionTime = 5 * time.Second
 )
 
 type App struct {
@@ -36,10 +38,14 @@ func CreateApp() *App {
 		Blockchain: *blockchain.NewBlockchain(),
 		Config:     *cfg,
 		ServerP2P: ServerP2P{
-			port:        cfg.PortP2P,
-			connections: make(map[string]Node),
-			masterNode:  nil,
-			status:      Follower,
+			port:          cfg.PortP2P,
+			connections:   make(map[string]Node),
+			masterNode:    "",
+			currentVote:   "",
+			status:        Follower,
+			heartbeat:     0,
+			walletsBL:     make(map[string]struct{}),
+			connectionsBL: make(map[string]struct{}),
 		},
 		ServerHTTP: ServerHTTP{
 			port: cfg.PortHTTP,
@@ -49,7 +55,7 @@ func CreateApp() *App {
 
 func (a *App) Heartbeat() {
 	for {
-		a.ServerP2P.heartbeat = false
+		atomic.StoreInt32(&a.ServerP2P.heartbeat, 0)
 		time.Sleep(HeartRate)
 		if a.ServerP2P.status == Master {
 			for addr := range a.ServerP2P.connections {
@@ -65,9 +71,9 @@ func (a *App) Heartbeat() {
 				conn.Write(marshalled)
 			}
 		} else {
-			if !a.ServerP2P.heartbeat {
+			if a.ServerP2P.heartbeat == 0 {
 				a.ServerP2P.status = Candidate
-				a.ServerP2P.masterNode = nil
+				a.ServerP2P.masterNode = ""
 				a.StartElection()
 			}
 		}
@@ -75,6 +81,22 @@ func (a *App) Heartbeat() {
 }
 
 func (a *App) StartElection() error {
-	// TODO: implement election algorithm
+	for addr := range a.ServerP2P.connections {
+		data := map[string]interface{}{"query": "04"}
+		marshalled, err := json.Marshal(data)
+		if err != nil {
+			slog.Error(err.Error(), "process", "election")
+			return err
+		}
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			slog.Error(err.Error(), "process", "election")
+			return err
+		}
+		if _, err := conn.Write(marshalled); err != nil {
+			slog.Error(err.Error(), "process", "election")
+			return err
+		}
+	}
 	return nil
 }
