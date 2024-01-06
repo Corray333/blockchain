@@ -11,19 +11,19 @@ import (
 )
 
 type Config struct {
-	PortHTTP  int      `yaml:"porthttp"`
-	PortP2P   int      `yaml:"portp2p"`
-	env       string   `yaml:"env"`
+	PortHTTP  int      `yaml:"portHTTP"`
+	PortP2P   int      `yaml:"portP2P"`
+	Env       string   `yaml:"env"`
 	BootNodes []string `yaml:"boot_nodes"`
 }
 
 func LoadConfig() (*Config, error) {
 
-	if err := godotenv.Load("../../.env"); err != nil {
+	if err := godotenv.Load("../.env"); err != nil {
 		return nil, fmt.Errorf("error while loading config%s", err.Error())
 	}
 	var config Config
-	configFile, err := os.ReadFile("../../configs/config.yaml")
+	configFile, err := os.ReadFile("../configs/config.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("error while loading config: %s", err.Error())
 	}
@@ -33,7 +33,7 @@ func LoadConfig() (*Config, error) {
 
 	var log *slog.Logger
 
-	switch config.env {
+	switch config.Env {
 	case "debug":
 		log = slog.New(
 			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),

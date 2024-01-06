@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Corray333/blockchain/internal/wallet"
@@ -57,7 +58,13 @@ func (b *Blockchain) NewTransaction(tx Transaction) error {
 	if !ok {
 		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.publicKey))
 	}
+	mu := sync.Mutex{}
+	mu.Lock()
 	b.transactionPool = append(b.transactionPool, tx)
+	if len(b.transactionPool) > 2000 {
+		b.CreateBlock()
+	}
+	mu.Unlock()
 	return nil
 }
 
@@ -87,6 +94,10 @@ type Block struct {
 	transactions  []Transaction
 	timestamp     time.Time
 	creatorAdress string
+}
+
+func (b Block) GetTimestamp() time.Time {
+	return b.timestamp
 }
 
 // Block.Save function saves a block in store folder
@@ -196,6 +207,10 @@ func (b Block) String() string {
 	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\ntimestamp: %s\ncreator: %s\n", b.prev[:], b.root[:], b.timestamp.String(), b.creatorAdress)
 }
 
+func (b Block) StringForHash() string {
+	return fmt.Sprintf("%x%x%s", b.prev[:], b.root[:], b.creatorAdress)
+}
+
 // Block.PrintTransactions prints all transactions in transaction pool
 func (b *Block) PrintTransactions() {
 	fmt.Println("====================\tTransactions\t====================")
@@ -208,7 +223,7 @@ func (b *Block) PrintTransactions() {
 
 // Block.Hash gets the hash of the block
 func (b Block) Hash() [32]byte {
-	return sha256.Sum256([]byte(b.String()))
+	return sha256.Sum256([]byte(b.StringForHash()))
 }
 
 type Token struct {

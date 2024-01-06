@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
-	"sync/atomic"
 	"time"
 
 	"github.com/Corray333/blockchain/internal/blockchain"
@@ -40,43 +39,12 @@ func CreateApp() *App {
 		ServerP2P: ServerP2P{
 			port:          cfg.PortP2P,
 			connections:   make(map[string]Node),
-			masterNode:    "",
-			currentVote:   "",
-			status:        Follower,
-			heartbeat:     0,
 			walletsBL:     make(map[string]struct{}),
 			connectionsBL: make(map[string]struct{}),
 		},
 		ServerHTTP: ServerHTTP{
 			port: cfg.PortHTTP,
 		},
-	}
-}
-
-func (a *App) Heartbeat() {
-	for {
-		atomic.StoreInt32(&a.ServerP2P.heartbeat, 0)
-		time.Sleep(HeartRate)
-		if a.ServerP2P.status == Master {
-			for addr := range a.ServerP2P.connections {
-				data := map[string]interface{}{"query": "06"}
-				marshalled, err := json.Marshal(data)
-				if err != nil {
-					slog.Error(err.Error(), "process", "heartbeat")
-				}
-				conn, err := net.Dial("tcp", addr)
-				if err != nil {
-					slog.Error(err.Error(), "process", "heartbeat")
-				}
-				conn.Write(marshalled)
-			}
-		} else {
-			if a.ServerP2P.heartbeat == 0 {
-				a.ServerP2P.status = Candidate
-				a.ServerP2P.masterNode = ""
-				a.StartElection()
-			}
-		}
 	}
 }
 
