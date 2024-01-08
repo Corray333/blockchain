@@ -81,7 +81,7 @@ func InitializeWallet() {
 	}
 	copy(wallet.publicKey[:], pub)
 
-	publicHash := sha256.Sum256(wallet.publicKey[:])
+	publicHash := sha256.Sum256(wallet.publicKey[:len(wallet.publicKey)-1])
 	copy(wallet.pkh[:], publicHash[:])
 
 	wallet.address = GenerateWalletAddress(wallet.pkh)

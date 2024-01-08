@@ -37,7 +37,7 @@ func NewBlockchain() *Blockchain {
 func (b *Block) GetTransactionsString() string {
 	res := ""
 	for _, t := range b.transactions {
-		res += fmt.Sprintf("%x|%x|%s|%x|%x|", t.output.pkh, t.output.token.hash, t.output.token.data, t.publicKey, t.sign)
+		res += fmt.Sprintf("%x|%s|%x|%x|", t.output.pkh, t.output.data, t.publicKey, t.sign)
 	}
 	return res
 }
@@ -54,7 +54,8 @@ func (b *Blockchain) PrintTransactions() {
 
 // Blockchain.NewTransaction creates a new transaction in transaction pool
 func (b *Blockchain) NewTransaction(tx Transaction) error {
-	ok := secp256k1.VerifySignature(tx.publicKey, tx.output.token.hash[:], tx.sign)
+	hash := tx.Hash()
+	ok := secp256k1.VerifySignature(tx.publicKey, hash[:], tx.sign[:64])
 	if !ok {
 		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.publicKey))
 	}
@@ -173,8 +174,7 @@ func LoadBlock(hash [32]byte) (*Block, error) {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		copy(transaction.output.pkh[:], pkh)
-		copy(transaction.output.token.hash[:], hash)
-		transaction.output.token.data = []byte(transactions[i+3])
+		transaction.output.data = []byte(transactions[i+3])
 		transaction.publicKey = make([]byte, 65)
 		transaction.sign = make([]byte, 64)
 		copy(transaction.publicKey[:], pub)
@@ -226,19 +226,21 @@ func (b Block) Hash() [32]byte {
 	return sha256.Sum256([]byte(b.StringForHash()))
 }
 
-type Token struct {
-	hash [32]byte
+// Output structure represents a transaction output
+type Output struct {
+	pkh  [20]byte
 	data []byte
 }
 
-// Output structure represents a transaction output
-type Output struct {
-	pkh   [20]byte
-	token Token
+func (o Output) GetPKH() [20]byte {
+	return o.pkh
+}
+func (o Output) GetData() []byte {
+	return o.data
 }
 
 func (o Output) String() string {
-	return fmt.Sprintf("pkh: %x, token: %x, description: %s", o.pkh, o.token.hash, string(o.token.data))
+	return fmt.Sprintf("pkh: %x, data: %s", o.pkh, string(o.data))
 }
 
 // Transact structure represents a transaction in blockchain
@@ -246,27 +248,62 @@ type Transaction struct {
 	output    Output
 	sign      []byte
 	publicKey []byte
+	timestamp time.Time
 }
 
-func NewTransaction(pkh [20]byte, hash [32]byte, data []byte, sign []byte, publicKey []byte) Transaction {
+func (t Transaction) GetPublicKey() []byte {
+	return t.publicKey
+}
+func (t Transaction) GetSign() []byte {
+	return t.sign
+}
+func (t *Transaction) SetSign(sign []byte) {
+	t.sign = sign
+}
+func (t Transaction) GetOutput() Output {
+	return t.output
+}
+func (t Transaction) GetTimestamp() time.Time {
+	return t.timestamp
+}
+
+// NewTransaction creates a new transaction
+//
+// pkh - public key hash of the receiver
+//
+// hash - hash of the string made of pkh+data+timestamp
+//
+// data - data of the transaction: marhsalled json
+//
+// sign - sign of the hash
+//
+// publicKey - public key of the sender
+func NewTransaction(pkh [20]byte, data []byte, publicKey []byte, timestamp time.Time) Transaction {
 	return Transaction{
 		output: Output{
-			pkh: pkh,
-			token: Token{
-				hash: hash,
-				data: data,
-			},
+			pkh:  pkh,
+			data: data,
 		},
-		sign:      sign,
 		publicKey: publicKey,
+		timestamp: timestamp,
 	}
 }
 
 func (tx Transaction) String() string {
-	return fmt.Sprintf("output: %s\nsign: %x\npublic key: %x", tx.output.String(), tx.sign, tx.publicKey[:])
+	return fmt.Sprintf("output: %s\nsign: %x\npublic key: %x\ntimestamp: %s", tx.output.String(), tx.sign, tx.publicKey[:], tx.timestamp.String())
 }
 
 // Transaction.Hash returns the hash of the transaction
 func (tx Transaction) Hash() [32]byte {
-	return sha256.Sum256([]byte(tx.String()))
+	return sha256.Sum256([]byte(string(tx.output.pkh[:]) + string(tx.output.data) + tx.timestamp.Format(time.RFC3339Nano)))
+}
+
+func (tx *Transaction) Sign(private []byte) error {
+	hash := tx.Hash()
+	sign, err := secp256k1.Sign(hash[:], private)
+	if err != nil {
+		return fmt.Errorf("error while signing transaction: %s", err.Error())
+	}
+	tx.sign = sign
+	return nil
 }

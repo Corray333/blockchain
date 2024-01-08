@@ -37,10 +37,9 @@ func CreateApp() *App {
 		Blockchain: *blockchain.NewBlockchain(),
 		Config:     *cfg,
 		ServerP2P: ServerP2P{
-			port:          cfg.PortP2P,
-			connections:   make(map[string]Node),
-			walletsBL:     make(map[string]struct{}),
-			connectionsBL: make(map[string]struct{}),
+			port:        cfg.PortP2P,
+			connections: make(map[string]Node),
+			walletsBL:   make(map[string]struct{}),
 		},
 		ServerHTTP: ServerHTTP{
 			port: cfg.PortHTTP,

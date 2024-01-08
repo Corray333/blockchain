@@ -1,15 +1,19 @@
 package app
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/Corray333/blockchain/internal/blockchain"
 	"github.com/Corray333/blockchain/internal/wallet"
 )
 
@@ -20,21 +24,13 @@ const (
 )
 
 type Node struct {
-	status uint8
 	wallet string
 }
 
 type ServerP2P struct {
-	port        int             // port of the node for P2P connection
-	connections map[string]Node // map of nodes
-	// masterNode    string              // master node IP address
-	// currentVote   string              // current vote
-	// votesFor      int                 // number of votes for
-	// votesAgainst  int                 // number of votes against
-	// status        uint8               // 0 - follower, 1 - candidate, 2 - master
-	// heartbeat     int32               // 0 - no heartbeat, 1 - heartbeat, int32 for atomic
-	walletsBL     map[string]struct{} // black list of wallets
-	connectionsBL map[string]struct{} // black list of IP addresses
+	port        int                 // port of the node for P2P connection
+	connections map[string]Node     // map of nodes
+	walletsBL   map[string]struct{} // black list of wallets
 }
 
 type ServerHTTP struct {
@@ -54,6 +50,7 @@ func GetOutboundIP() string {
 }
 
 func (a *App) Run() {
+	go a.RunClient()
 	listener, err := net.Listen("tcp", GetOutboundIP()+":"+strconv.Itoa(a.ServerP2P.port))
 	fmt.Printf("Starting server %s", listener.Addr().String())
 	if err != nil {
@@ -109,47 +106,87 @@ func (a *App) ConnectDirectly(addr string) error {
 		return errors.New("error while connecting to network:" + err.Error())
 	}
 	defer conn.Close()
-	// Code 01 is for network-service commands
 	query := map[string]interface{}{
-		"query":  "01",
-		"wallet": wallet.GetAddress(),
-		"from":   GetOutboundIP() + ":" + strconv.Itoa(a.ServerP2P.port),
+		"query": "01",
 	}
 	bytesQuery, err := json.Marshal(query)
 	if err != nil {
-		return errors.New("error while connecting to network:" + err.Error())
+		return errors.New("error while marshalling query to connect to network:" + err.Error())
 	}
 	if _, err := conn.Write(bytesQuery); err != nil {
-		return errors.New("error while connecting to network:" + err.Error())
+		return errors.New("error while writing message to connect to network:" + err.Error())
 	}
-	buf := make([]byte, 1024)
+	buf := make([]byte, 524288)
 	n, err := conn.Read(buf)
 	if err != nil {
-		return errors.New("error while connecting to network:" + err.Error())
+		return errors.New("error while reading response to connect to network:" + err.Error())
 	}
 	splited := strings.Split(string(buf[:n]), "|")
 	for _, v := range splited {
+		fmt.Println(v)
 		if v == "" {
 			continue
 		}
 		a.ServerP2P.connections[v] = Node{}
 	}
-	slog.Info("connected to network: " + string(buf[:n]) + "...")
+
+	conn, err = net.Dial("tcp", addr)
+	if err != nil {
+		return errors.New("error while connecting to network:" + err.Error())
+	}
+	defer conn.Close()
+	query = map[string]interface{}{
+		"query":  "02",
+		"wallet": wallet.GetAddress(),
+		"from":   GetOutboundIP() + ":" + strconv.Itoa(a.ServerP2P.port),
+	}
+	bytesQuery, err = json.Marshal(query)
+	if err != nil {
+		return errors.New("error while marshalling query to connect to network:" + err.Error())
+	}
+	if _, err := conn.Write(bytesQuery); err != nil {
+		return errors.New("error while writing message to connect to network:" + err.Error())
+	}
+	buf = make([]byte, 128)
+	n, err = conn.Read(buf)
+	if err != nil {
+		return errors.New("error while reading response to connect to network:" + err.Error())
+	}
+	if string(buf[:n]) != "ok" {
+		return errors.New("error while connecting to network")
+	}
+
 	return nil
-	// buf := make([]byte, 4096)
-	// k := 0
-	// for {
-	// 	n, err := conn.Read(buf[k:])
-	// 	if err != nil {
-	// 		return errors.New("error while connecting to network:" + err.Error())
-	// 	}
-	// 	splited := strings.Split(string(buf[:n]), "|")
-	// 	for _, v := range splited {
-	// 		a.ServerP2P.connections[v] = nil
-	// 	}
-	// 	if len(splited[len(splited)-1]) < 20 {
-	// 		delete(a.ServerP2P.connections, splited[len(splited)-1])
-	// 		k = len(splited[len(splited)-1])
-	// 	}
-	// }
+}
+
+func (a *App) RunClient() {
+	for {
+		query := InputString()
+		splitted := strings.Split(query, " ")
+		switch splitted[0] {
+		case "/create-transaction":
+			pkh := [20]byte{}
+			copy(pkh[:], splitted[2])
+			tx := blockchain.NewTransaction(pkh, []byte(splitted[1]), wallet.GetPublicKey(), time.Now())
+			if err := tx.Sign(wallet.GetPrivateKey()); err != nil {
+				slog.Error(err.Error(), "type", "blockchain", "process", "create transaction")
+			}
+			if err := a.Blockchain.NewTransaction(tx); err != nil {
+				slog.Error(err.Error(), "type", "blockchain", "process", "create transaction")
+			}
+			SendTransactionToNetwork(a, tx)
+		case "/show-transactions":
+			a.Blockchain.PrintTransactions()
+		case "/show-nodes":
+			fmt.Println("====================\tNodes\t====================")
+			for k := range a.ServerP2P.connections {
+				fmt.Println(k)
+			}
+		}
+	}
+}
+
+func InputString() string {
+	msg, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	return strings.Replace(msg, "\n", "", -1)
 }
