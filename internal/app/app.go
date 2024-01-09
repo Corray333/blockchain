@@ -23,6 +23,7 @@ type App struct {
 	ServerP2P  ServerP2P
 	ServerHTTP ServerHTTP
 	Config     config.Config
+	UpToDate   bool
 }
 
 func CreateApp() *App {

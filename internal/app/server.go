@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -52,12 +53,12 @@ func GetOutboundIP() string {
 func (a *App) Run() {
 	go a.RunClient()
 	listener, err := net.Listen("tcp", GetOutboundIP()+":"+strconv.Itoa(a.ServerP2P.port))
-	fmt.Printf("Starting server %s", listener.Addr().String())
+	fmt.Printf("Starting server %s\n", listener.Addr().String())
 	if err != nil {
 		slog.Error("error while starting server:" + err.Error())
 		panic(err)
 	}
-	go a.ConnectWithBootnodes()
+	// go a.ConnectWithBootnodes()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -123,7 +124,6 @@ func (a *App) ConnectDirectly(addr string) error {
 	}
 	splited := strings.Split(string(buf[:n]), "|")
 	for _, v := range splited {
-		fmt.Println(v)
 		if v == "" {
 			continue
 		}
@@ -182,6 +182,19 @@ func (a *App) RunClient() {
 			for k := range a.ServerP2P.connections {
 				fmt.Println(k)
 			}
+		case "/show-wallet":
+			fmt.Println("====================\tWallet\t====================")
+			wallet.Print()
+		case "/connect-through":
+			if err := a.ConnectDirectly(splitted[1]); err != nil {
+				slog.Error(err.Error(), "type", "network", "process", "connect through")
+			}
+		case "/clear":
+			cmd := exec.Command("clear") //Linux example, its tested
+			cmd.Stdout = os.Stdout
+			cmd.Run()
+		case "exit":
+			os.Exit(0)
 		}
 	}
 }

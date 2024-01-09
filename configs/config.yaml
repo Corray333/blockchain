@@ -2,8 +2,3 @@ portHTTP: 3000
 portP2P:  3001
 env: "debug"
 boot_nodes: []
-
-# portHTTP: 3000
-# portP2P:  3002
-# env: "debug"
-# boot_nodes: ["10.96.0.31:3001"]

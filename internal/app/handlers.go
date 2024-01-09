@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 )
 
 func SendAllNodes(a *App, conn net.Conn) error {
-	fmt.Println("Asked all nodes")
 	if len(a.ServerP2P.connections) != 0 {
 		resp := ""
 		for k := range a.ServerP2P.connections {
@@ -32,7 +32,6 @@ func SendAllNodes(a *App, conn net.Conn) error {
 }
 
 func AddNewNode(a *App, wallet string, from string, conn net.Conn) error {
-	fmt.Println("Asked to add node")
 	a.ServerP2P.connections[from] = Node{
 		wallet: wallet,
 	}
@@ -94,7 +93,6 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 	}
 	tx := blockchain.NewTransaction(query.PKH, query.Data, query.PublicKey, query.Timestamp)
 	tx.SetSign(query.Sign)
-	fmt.Println(tx.String())
 	if err := a.Blockchain.NewTransaction(tx); err != nil {
 		pkh := [20]byte{}
 		hash := sha256.Sum256(query.PublicKey)
@@ -130,6 +128,49 @@ func NotifyAboutNewBlock(a *App, b *blockchain.Block) error {
 		conn, err := net.Dial("tcp", k)
 		if err != nil {
 			return fmt.Errorf("error while dialing to querier: %s", err.Error())
+		}
+		if _, err := conn.Write(marshalled); err != nil {
+			return fmt.Errorf("error while writing to querier: %s", err.Error())
+		}
+	}
+	return nil
+}
+
+func SendAllBlocks(a *App, conn net.Conn) error {
+	if !a.UpToDate {
+		if _, err := conn.Write([]byte("not up to date")); err != nil {
+			if _, err := conn.Write([]byte("error")); err != nil {
+				return fmt.Errorf("error while writing to querier: %s", err.Error())
+			}
+			return fmt.Errorf("error while writing to querier: %s", err.Error())
+		}
+		return fmt.Errorf("node is not up to date")
+	}
+	entries, err := os.ReadDir("../../store")
+	if err != nil {
+		return fmt.Errorf("error while reading directory: %s", err.Error())
+	}
+	for i := 0; i < len(entries); i++ {
+		f, err := os.ReadFile("../../store/" + entries[i].Name())
+		if err != nil {
+			if _, err := conn.Write([]byte("error")); err != nil {
+				return fmt.Errorf("error while writing to querier: %s", err.Error())
+			}
+			return fmt.Errorf("error while reading file: %s", err.Error())
+		}
+		query := struct {
+			Query string `json:"query"`
+			Data  []byte `json:"data"`
+		}{
+			Query: "06", // new block
+			Data:  f,
+		}
+		marshalled, err := json.Marshal(query)
+		if err != nil {
+			if _, err := conn.Write([]byte("error")); err != nil {
+				return fmt.Errorf("error while writing to querier: %s", err.Error())
+			}
+			return fmt.Errorf("error while marshaling query: %s", err.Error())
 		}
 		if _, err := conn.Write(marshalled); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())

@@ -85,6 +85,11 @@ func InitializeWallet() {
 	copy(wallet.pkh[:], publicHash[:])
 
 	wallet.address = GenerateWalletAddress(wallet.pkh)
+
+}
+
+func Print() {
+	fmt.Println(wallet.String())
 }
 
 // GenerateSecretNumberBySeedPhrase generates a secret number from the seed phrase
