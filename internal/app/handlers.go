@@ -31,7 +31,20 @@ func SendAllNodes(a *App, conn net.Conn) error {
 	return nil
 }
 
-func AddNewNode(a *App, wallet string, from string, conn net.Conn) error {
+func AddNewNode(a *App, wallet string, from string, conn net.Conn, lastBlock string) error {
+	defer conn.Close()
+	if _, ok := a.ServerP2P.walletsBL[wallet]; ok {
+		if _, err := conn.Write([]byte("forbidden")); err != nil {
+			return fmt.Errorf("error while writing to querier: %s", err.Error())
+		}
+		return fmt.Errorf("wallet is in black list")
+	}
+	if lastBlock != fmt.Sprintf("%x", a.Blockchain.GetLastBlock()) {
+		if _, err := conn.Write([]byte("not up to date")); err != nil {
+			return fmt.Errorf("error while writing to querier: %s", err.Error())
+		}
+		return fmt.Errorf("node is not up to date")
+	}
 	a.ServerP2P.connections[from] = Node{
 		wallet: wallet,
 	}

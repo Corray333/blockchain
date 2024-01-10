@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"strconv"
@@ -21,6 +20,10 @@ import (
 type Blockchain struct {
 	blockList       [][32]byte
 	transactionPool []Transaction
+}
+
+func (b Blockchain) GetLastBlock() [32]byte {
+	return b.blockList[len(b.blockList)-1]
 }
 
 // NewBlockchain returnc a new blockchain
@@ -95,20 +98,25 @@ type Block struct {
 	transactions  []Transaction
 	timestamp     time.Time
 	creatorAdress string
+	level         int
 }
 
 func (b Block) GetTimestamp() time.Time {
 	return b.timestamp
 }
 
+func (b Block) GetLevel() int {
+	return b.level
+}
+
 // Block.Save function saves a block in store folder
 func (b Block) Save() error {
 	hash := b.Hash()
-	file, err := os.Create(fmt.Sprintf("../store/%x.blk", hash))
+	file, err := os.Create(fmt.Sprintf("../store/%d-%x.blk", b.GetLevel(), hash))
 	if err != nil {
 		return err
 	}
-	res := fmt.Sprintf("%x|%x|%d|%s\n", b.prev, b.root, b.timestamp.UnixMicro(), b.creatorAdress)
+	res := fmt.Sprintf("%x|%x|%d|%s|%d\n", b.prev, b.root, b.timestamp.UnixMicro(), b.creatorAdress, b.level)
 	// TODO: save transactions with compressed public keys
 	res += b.GetTransactionsString()
 	n, err := file.Write([]byte(res))
@@ -121,45 +129,41 @@ func (b Block) Save() error {
 	return nil
 }
 
-func LoadBlock(hash [32]byte) (*Block, error) {
-	file, err := os.Open(fmt.Sprintf("../store/%x.blk", hash))
-	if err != nil {
-		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
-	}
+func LoadBlock(data []byte) (*Block, error) {
 	var block Block
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
-	}
 	splitted := strings.Split(string(data), "\n")
 	blockData := strings.Split(splitted[0], "|")
 	transactions := strings.Split(splitted[1], "|")
 	prev, err := hex.DecodeString(blockData[0])
 	if err != nil {
-		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
+		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
 	copy(block.prev[:], prev)
 	root, err := hex.DecodeString(blockData[1])
 	if err != nil {
-		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
+		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
 	copy(block.root[:], root)
 	microSeconds, err := strconv.ParseInt(blockData[2], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
+		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
 	block.timestamp = time.UnixMicro(microSeconds)
 	if err != nil {
-		return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
+		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
 	block.creatorAdress = blockData[3]
+	block.level, err = strconv.Atoi(blockData[4])
+	if err != nil {
+		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
+	}
 	block.transactions = []Transaction{}
 	// TODO: load transactions
 	for i := 0; i < len(transactions)-1; i += 6 {
 		var transaction Transaction
 		pkh, err := hex.DecodeString(transactions[i+1])
 		if err != nil {
-			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
+			return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 		}
 		hash, err := hex.DecodeString(transactions[i+2])
 		if err != nil {

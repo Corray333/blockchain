@@ -19,7 +19,7 @@ func (a *App) HandleRequest(conn net.Conn, req []byte) error {
 			return fmt.Errorf("error while sending all nodes: %s", err.Error())
 		}
 	case "02": // message about new node
-		if err := AddNewNode(a, data["wallet"].(string), data["from"].(string), conn); err != nil {
+		if err := AddNewNode(a, data["wallet"].(string), data["from"].(string), conn, data["lastBlock"].(string)); err != nil {
 			return fmt.Errorf("error while notifying about new node: %s", err.Error())
 		}
 	case "03": // commit transaction
