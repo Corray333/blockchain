@@ -14,6 +14,7 @@ import (
 	"github.com/Corray333/blockchain/internal/wallet"
 )
 
+// HandleRequest function handles request from new node to get all the nodes in network.
 func SendAllNodes(a *App, conn net.Conn) error {
 	if len(a.ServerP2P.connections) != 0 {
 		resp := ""
@@ -31,6 +32,7 @@ func SendAllNodes(a *App, conn net.Conn) error {
 	return nil
 }
 
+// AddNewNode function handles request from new node to be added in list. isUpToDate is false by default and will be changed by verifying with another request.
 func AddNewNode(a *App, wallet string, from string, conn net.Conn, lastBlock string) error {
 	defer conn.Close()
 	if _, ok := a.ServerP2P.walletsBL[wallet]; ok {
@@ -39,14 +41,19 @@ func AddNewNode(a *App, wallet string, from string, conn net.Conn, lastBlock str
 		}
 		return fmt.Errorf("wallet is in black list")
 	}
+	a.ServerP2P.connections[from] = Node{
+		wallet:     wallet,
+		isUpToDate: true,
+	}
 	if lastBlock != fmt.Sprintf("%x", a.Blockchain.GetLastBlock()) {
+		a.ServerP2P.connections[from] = Node{
+			wallet:     a.ServerP2P.connections[from].wallet,
+			isUpToDate: false,
+		}
 		if _, err := conn.Write([]byte("not up to date")); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
 		return fmt.Errorf("node is not up to date")
-	}
-	a.ServerP2P.connections[from] = Node{
-		wallet: wallet,
 	}
 	if _, err := conn.Write([]byte("ok")); err != nil {
 		return fmt.Errorf("error while writing to querier: %s", err.Error())
@@ -55,41 +62,7 @@ func AddNewNode(a *App, wallet string, from string, conn net.Conn, lastBlock str
 	return nil
 }
 
-func NotifyAllAboutNewNode(a *App, from string) error {
-	query := map[string]interface{}{
-		"query":   "02", // message about new node
-		"address": from,
-	}
-	marshalled, err := json.Marshal(query)
-	if err != nil {
-		return fmt.Errorf("error while marshaling query: %s", err.Error())
-	}
-	for k := range a.ServerP2P.connections {
-		NotifyAboutNewNode(k, marshalled)
-	}
-	return nil
-}
-
-func NotifyAboutNewNode(addr string, query []byte) error {
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("error while dialing to querier: %s", err.Error())
-	}
-	if _, err := conn.Write(query); err != nil {
-		return fmt.Errorf("error while writing to querier: %s", err.Error())
-	}
-	// Handle response
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return fmt.Errorf("error while reading from querier: %s", err.Error())
-	}
-	if string(buf[:n]) != "ok" {
-		return fmt.Errorf("bad response")
-	}
-	return nil
-}
-
+// NewTransaction function handles request from node to commit new transaction.
 func NewTransaction(a *App, req []byte, conn net.Conn) error {
 	query := struct {
 		Query     string    `json:"query"`
@@ -127,28 +100,7 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 	return nil
 }
 
-func NotifyAboutNewBlock(a *App, b *blockchain.Block) error {
-	query := map[string]interface{}{
-		"query":      "08", // query to verify new block
-		"block_hash": b.Hash(),
-		"timestamp":  b.GetTimestamp(),
-	}
-	marshalled, err := json.Marshal(query)
-	if err != nil {
-		return fmt.Errorf("error while marshaling query: %s", err.Error())
-	}
-	for k := range a.ServerP2P.connections {
-		conn, err := net.Dial("tcp", k)
-		if err != nil {
-			return fmt.Errorf("error while dialing to querier: %s", err.Error())
-		}
-		if _, err := conn.Write(marshalled); err != nil {
-			return fmt.Errorf("error while writing to querier: %s", err.Error())
-		}
-	}
-	return nil
-}
-
+// SendAllBlocks function handles request from new node to get all the blocks in blockchain. Blocks will be sent from the last block to the first one.
 func SendAllBlocks(a *App, conn net.Conn) error {
 	if !a.UpToDate {
 		if _, err := conn.Write([]byte("not up to date")); err != nil {
@@ -163,7 +115,7 @@ func SendAllBlocks(a *App, conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("error while reading directory: %s", err.Error())
 	}
-	for i := 0; i < len(entries); i++ {
+	for i := len(entries) - 1; i > -1; i-- {
 		f, err := os.ReadFile("../../store/" + entries[i].Name())
 		if err != nil {
 			if _, err := conn.Write([]byte("error")); err != nil {

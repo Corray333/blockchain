@@ -25,7 +25,8 @@ const (
 )
 
 type Node struct {
-	wallet string
+	wallet     string
+	isUpToDate bool
 }
 
 type ServerP2P struct {

@@ -24,9 +24,6 @@ func (a *App) HandleRequest(conn net.Conn, req []byte) error {
 		}
 	case "03": // commit transaction
 		return NewTransaction(a, req, conn)
-	case "04": // query to verify new block
-	case "05": // query to get all blocks
-	case "06": // new block
 	}
 	return nil
 }
