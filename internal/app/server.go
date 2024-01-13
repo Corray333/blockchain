@@ -18,12 +18,6 @@ import (
 	"github.com/Corray333/blockchain/internal/wallet"
 )
 
-const (
-	Follower = iota
-	Candidate
-	Master
-)
-
 type Node struct {
 	wallet     string
 	isUpToDate bool

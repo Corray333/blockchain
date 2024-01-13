@@ -1,20 +1,12 @@
 package app
 
 import (
-	"encoding/json"
 	"log/slog"
-	"net"
-	"time"
 
 	"github.com/Corray333/blockchain/internal/blockchain"
 	"github.com/Corray333/blockchain/internal/config"
 	"github.com/Corray333/blockchain/internal/wallet"
 	"github.com/joho/godotenv"
-)
-
-const (
-	HeartRate    = 2 * time.Second
-	ElectionTime = 5 * time.Second
 )
 
 type App struct {
@@ -46,25 +38,4 @@ func CreateApp() *App {
 			port: cfg.PortHTTP,
 		},
 	}
-}
-
-func (a *App) StartElection() error {
-	for addr := range a.ServerP2P.connections {
-		data := map[string]interface{}{"query": "04"}
-		marshalled, err := json.Marshal(data)
-		if err != nil {
-			slog.Error(err.Error(), "process", "election")
-			return err
-		}
-		conn, err := net.Dial("tcp", addr)
-		if err != nil {
-			slog.Error(err.Error(), "process", "election")
-			return err
-		}
-		if _, err := conn.Write(marshalled); err != nil {
-			slog.Error(err.Error(), "process", "election")
-			return err
-		}
-	}
-	return nil
 }

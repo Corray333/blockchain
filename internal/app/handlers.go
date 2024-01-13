@@ -71,11 +71,18 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 		Sign      []byte    `json:"sign"`
 		PublicKey []byte    `json:"publicKey"`
 		Timestamp time.Time `json:"timestamp"`
+		LastBlock [32]byte  `json:"lastBlock"`
 	}{}
 	// TODO: transaction validation
 	err := json.Unmarshal(req, &query)
 	if err != nil {
 		return fmt.Errorf("error while unmarshaling request: %s", err.Error())
+	}
+	if a.Blockchain.GetLastBlock() != query.LastBlock {
+		if _, err := conn.Write([]byte("not up to date")); err != nil {
+			return fmt.Errorf("error while writing to querier: %s", err.Error())
+		}
+		return fmt.Errorf("node is not up to date")
 	}
 	tx := blockchain.NewTransaction(query.PKH, query.Data, query.PublicKey, query.Timestamp)
 	tx.SetSign(query.Sign)
@@ -127,7 +134,7 @@ func SendAllBlocks(a *App, conn net.Conn) error {
 			Query string `json:"query"`
 			Data  []byte `json:"data"`
 		}{
-			Query: "06", // new block
+			Query: "04", // new block
 			Data:  f,
 		}
 		marshalled, err := json.Marshal(query)
