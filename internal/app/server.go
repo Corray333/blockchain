@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net"
 	"os"
@@ -14,40 +13,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Corray333/blockchain/internal/app/node"
+	"github.com/Corray333/blockchain/internal/app/senders"
 	"github.com/Corray333/blockchain/internal/blockchain"
+	"github.com/Corray333/blockchain/internal/helpers"
 	"github.com/Corray333/blockchain/internal/wallet"
 )
 
-type Node struct {
-	wallet     string
-	isUpToDate bool
-}
-
 type ServerP2P struct {
-	port        int                 // port of the node for P2P connection
-	connections map[string]Node     // map of nodes
-	walletsBL   map[string]struct{} // black list of wallets
+	port        int                  // port of the node for P2P connection
+	connections map[string]node.Node // map of nodes
+	walletsBL   map[string]struct{}  // black list of wallets
 }
 
 type ServerHTTP struct {
 	port int
 }
 
-func GetOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP.String()
-}
-
 func (a *App) Run() {
 	go a.RunClient()
-	listener, err := net.Listen("tcp", GetOutboundIP()+":"+strconv.Itoa(a.ServerP2P.port))
+	listener, err := net.Listen("tcp", helpers.GetOutboundIP()+":"+strconv.Itoa(a.ServerP2P.port))
 	fmt.Printf("Starting server %s\n", listener.Addr().String())
 	if err != nil {
 		slog.Error("error while starting server:" + err.Error())
@@ -122,7 +107,8 @@ func (a *App) ConnectDirectly(addr string) error {
 		if v == "" {
 			continue
 		}
-		a.ServerP2P.connections[v] = Node{}
+		// TODO: get wallets with addresses
+		a.ServerP2P.connections[v] = node.Node{}
 	}
 
 	conn, err = net.Dial("tcp", addr)
@@ -133,7 +119,7 @@ func (a *App) ConnectDirectly(addr string) error {
 	query = map[string]interface{}{
 		"query":  "02",
 		"wallet": wallet.GetAddress(),
-		"from":   GetOutboundIP() + ":" + strconv.Itoa(a.ServerP2P.port),
+		"from":   helpers.GetOutboundIP() + ":" + strconv.Itoa(a.ServerP2P.port),
 	}
 	bytesQuery, err = json.Marshal(query)
 	if err != nil {
@@ -169,7 +155,7 @@ func (a *App) RunClient() {
 			if err := a.Blockchain.NewTransaction(tx); err != nil {
 				slog.Error(err.Error(), "type", "blockchain", "process", "create transaction")
 			}
-			SendTransactionToNetwork(a, tx)
+			senders.SendTransactionToNetwork(a.ServerP2P.connections, tx)
 		case "/show-transactions":
 			a.Blockchain.PrintTransactions()
 		case "/show-nodes":

@@ -3,6 +3,7 @@ package app
 import (
 	"log/slog"
 
+	"github.com/Corray333/blockchain/internal/app/node"
 	"github.com/Corray333/blockchain/internal/blockchain"
 	"github.com/Corray333/blockchain/internal/config"
 	"github.com/Corray333/blockchain/internal/wallet"
@@ -31,7 +32,7 @@ func CreateApp() *App {
 		Config:     *cfg,
 		ServerP2P: ServerP2P{
 			port:        cfg.PortP2P,
-			connections: make(map[string]Node),
+			connections: make(map[string]node.Node),
 			walletsBL:   make(map[string]struct{}),
 		},
 		ServerHTTP: ServerHTTP{

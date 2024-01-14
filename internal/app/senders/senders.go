@@ -1,4 +1,4 @@
-package app
+package senders
 
 import (
 	"encoding/json"
@@ -7,12 +7,13 @@ import (
 	"net"
 	"time"
 
+	"github.com/Corray333/blockchain/internal/app/node"
 	"github.com/Corray333/blockchain/internal/blockchain"
 )
 
-func SendTransactionToNetwork(a *App, tx blockchain.Transaction) error {
-	for addr := range a.ServerP2P.connections {
-		err := SendTransaction(a, addr, tx)
+func SendTransactionToNetwork(conns map[string]node.Node, tx blockchain.Transaction) error {
+	for addr := range conns {
+		err := SendTransaction(addr, tx)
 		if err != nil {
 			slog.Error(err.Error(), "type", "blockchain", "process", "send transaction")
 		}
@@ -20,7 +21,7 @@ func SendTransactionToNetwork(a *App, tx blockchain.Transaction) error {
 	return nil
 }
 
-func SendTransaction(a *App, to string, tx blockchain.Transaction) error {
+func SendTransaction(to string, tx blockchain.Transaction) error {
 	query := struct {
 		Query     string    `json:"query"`
 		PKH       [20]byte  `json:"pkh"`

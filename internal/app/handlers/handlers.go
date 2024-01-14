@@ -1,4 +1,4 @@
-package app
+package handlers
 
 import (
 	"crypto/sha256"
@@ -10,22 +10,24 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Corray333/blockchain/internal/app/node"
 	"github.com/Corray333/blockchain/internal/blockchain"
+	"github.com/Corray333/blockchain/internal/helpers"
 	"github.com/Corray333/blockchain/internal/wallet"
 )
 
 // HandleRequest function handles request from new node to get all the nodes in network.
-func SendAllNodes(a *App, conn net.Conn) error {
-	if len(a.ServerP2P.connections) != 0 {
+func SendAllNodes(conns map[string]node.Node, port int, conn net.Conn) error {
+	if len(conns) != 0 {
 		resp := ""
-		for k := range a.ServerP2P.connections {
+		for k := range conns {
 			resp += k + "|"
 		}
 		if _, err := conn.Write([]byte(resp[:len(resp)-1])); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
 	} else {
-		if _, err := conn.Write([]byte(GetOutboundIP() + ":" + strconv.Itoa(a.ServerP2P.port) + "|")); err != nil {
+		if _, err := conn.Write([]byte(helpers.GetOutboundIP() + ":" + strconv.Itoa(port) + "|")); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
 	}
@@ -33,23 +35,22 @@ func SendAllNodes(a *App, conn net.Conn) error {
 }
 
 // AddNewNode function handles request from new node to be added in list. isUpToDate is false by default and will be changed by verifying with another request.
-func AddNewNode(a *App, wallet string, from string, conn net.Conn, lastBlock string) error {
+func AddNewNode(lastBlockLocal [32]byte, conns map[string]node.Node, blackList map[string]struct{}, wallet string, from string, conn net.Conn, lastBlock string) error {
 	defer conn.Close()
-	if _, ok := a.ServerP2P.walletsBL[wallet]; ok {
+	if _, ok := blackList[wallet]; ok {
 		if _, err := conn.Write([]byte("forbidden")); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
 		return fmt.Errorf("wallet is in black list")
 	}
-	a.ServerP2P.connections[from] = Node{
-		wallet:     wallet,
-		isUpToDate: true,
-	}
-	if lastBlock != fmt.Sprintf("%x", a.Blockchain.GetLastBlock()) {
-		a.ServerP2P.connections[from] = Node{
-			wallet:     a.ServerP2P.connections[from].wallet,
-			isUpToDate: false,
-		}
+	newNode := node.Node{}
+	newNode.SetWallet(wallet)
+	conns[from] = newNode
+	if lastBlock != fmt.Sprintf("%x", lastBlockLocal) {
+		newNode := node.Node{}
+		newNode.SetWallet(conns[from].GetWallet())
+		newNode.IsNotUpToDate()
+		conns[from] = newNode
 		if _, err := conn.Write([]byte("not up to date")); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
@@ -63,7 +64,7 @@ func AddNewNode(a *App, wallet string, from string, conn net.Conn, lastBlock str
 }
 
 // NewTransaction function handles request from node to commit new transaction.
-func NewTransaction(a *App, req []byte, conn net.Conn) error {
+func NewTransaction(bchain *blockchain.Blockchain, blackList map[string]struct{}, req []byte, conn net.Conn) error {
 	query := struct {
 		Query     string    `json:"query"`
 		PKH       [20]byte  `json:"pkh"`
@@ -78,7 +79,7 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("error while unmarshaling request: %s", err.Error())
 	}
-	if a.Blockchain.GetLastBlock() != query.LastBlock {
+	if bchain.GetLastBlock() != query.LastBlock {
 		if _, err := conn.Write([]byte("not up to date")); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
@@ -86,11 +87,11 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 	}
 	tx := blockchain.NewTransaction(query.PKH, query.Data, query.PublicKey, query.Timestamp)
 	tx.SetSign(query.Sign)
-	if err := a.Blockchain.NewTransaction(tx); err != nil {
+	if err := bchain.NewTransaction(tx); err != nil {
 		pkh := [20]byte{}
 		hash := sha256.Sum256(query.PublicKey)
 		copy(pkh[:], hash[:])
-		a.ServerP2P.walletsBL[wallet.GenerateWalletAddress(pkh)] = struct{}{}
+		blackList[wallet.GenerateWalletAddress(pkh)] = struct{}{}
 		if _, err := conn.Write([]byte("forbidden")); err != nil {
 			return fmt.Errorf("error while writing to querier: %s", err.Error())
 		}
@@ -99,7 +100,7 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 	if _, err := conn.Write([]byte("ok")); err != nil {
 		return fmt.Errorf("error while writing to querier: %s", err.Error())
 	}
-	err = a.Blockchain.NewTransaction(tx)
+	err = bchain.NewTransaction(tx)
 	if err != nil {
 		return fmt.Errorf("error while adding transaction to blockchain:" + err.Error())
 	}
@@ -108,8 +109,8 @@ func NewTransaction(a *App, req []byte, conn net.Conn) error {
 }
 
 // SendAllBlocks function handles request from new node to get all the blocks in blockchain. Blocks will be sent from the last block to the first one.
-func SendAllBlocks(a *App, conn net.Conn) error {
-	if !a.UpToDate {
+func SendAllBlocks(isUpToDate bool, conn net.Conn) error {
+	if !isUpToDate {
 		if _, err := conn.Write([]byte("not up to date")); err != nil {
 			if _, err := conn.Write([]byte("error")); err != nil {
 				return fmt.Errorf("error while writing to querier: %s", err.Error())
