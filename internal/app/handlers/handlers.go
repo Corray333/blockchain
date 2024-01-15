@@ -119,12 +119,12 @@ func SendAllBlocks(isUpToDate bool, conn net.Conn) error {
 		}
 		return fmt.Errorf("node is not up to date")
 	}
-	entries, err := os.ReadDir("../../store")
+	entries, err := os.ReadDir("../../store/blocks")
 	if err != nil {
 		return fmt.Errorf("error while reading directory: %s", err.Error())
 	}
 	for i := len(entries) - 1; i > -1; i-- {
-		f, err := os.ReadFile("../../store/" + entries[i].Name())
+		f, err := os.ReadFile("../../store/blocks" + entries[i].Name())
 		if err != nil {
 			if _, err := conn.Write([]byte("error")); err != nil {
 				return fmt.Errorf("error while writing to querier: %s", err.Error())

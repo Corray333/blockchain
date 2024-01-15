@@ -1,8 +1,11 @@
 package node
 
+import "github.com/Corray333/blockchain/internal/person"
+
 type Node struct {
 	wallet     string
 	isUpToDate bool
+	person     person.Person
 }
 
 func (n Node) GetWallet() string {

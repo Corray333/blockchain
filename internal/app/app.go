@@ -6,6 +6,7 @@ import (
 	"github.com/Corray333/blockchain/internal/app/node"
 	"github.com/Corray333/blockchain/internal/blockchain"
 	"github.com/Corray333/blockchain/internal/config"
+	"github.com/Corray333/blockchain/internal/person"
 	"github.com/Corray333/blockchain/internal/wallet"
 	"github.com/joho/godotenv"
 )
@@ -17,6 +18,7 @@ type App struct {
 	ServerHTTP ServerHTTP
 	Config     config.Config
 	UpToDate   bool
+	Persons    []person.Person
 }
 
 func CreateApp() *App {
@@ -38,5 +40,7 @@ func CreateApp() *App {
 		ServerHTTP: ServerHTTP{
 			port: cfg.PortHTTP,
 		},
+		UpToDate: false,
+		Persons:  make([]person.Person, 25000),
 	}
 }

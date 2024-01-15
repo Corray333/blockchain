@@ -112,7 +112,7 @@ func (b Block) GetLevel() int {
 // Block.Save function saves a block in store folder
 func (b Block) Save() error {
 	hash := b.Hash()
-	file, err := os.Create(fmt.Sprintf("../store/%d-%x.blk", b.GetLevel(), hash))
+	file, err := os.Create(fmt.Sprintf("../store/blocks/%d-%x.blk", b.GetLevel(), hash))
 	if err != nil {
 		return err
 	}
