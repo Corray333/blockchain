@@ -11,10 +11,11 @@ import (
 )
 
 type Config struct {
-	PortHTTP  int      `yaml:"portHTTP"`
-	PortP2P   int      `yaml:"portP2P"`
-	Env       string   `yaml:"env"`
-	BootNodes []string `yaml:"boot_nodes"`
+	PortP2P    int      `yaml:"portP2P"`
+	PortServer int      `yaml:"portServer"`
+	PortClient int      `yaml:"portClient"`
+	Env        string   `yaml:"env"`
+	BootNodes  []string `yaml:"boot_nodes"`
 }
 
 func LoadConfig() (*Config, error) {

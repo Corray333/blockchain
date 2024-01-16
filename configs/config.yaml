@@ -1,4 +1,5 @@
-portHTTP: 3000
 portP2P:  3001
+portServer: 3000
+portClient:  3002
 env: "debug"
 boot_nodes: []

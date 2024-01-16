@@ -5,6 +5,7 @@ import (
 
 	"github.com/Corray333/blockchain/internal/app/node"
 	"github.com/Corray333/blockchain/internal/blockchain"
+	"github.com/Corray333/blockchain/internal/client"
 	"github.com/Corray333/blockchain/internal/config"
 	"github.com/Corray333/blockchain/internal/person"
 	"github.com/Corray333/blockchain/internal/wallet"
@@ -15,7 +16,7 @@ type App struct {
 	Blockchain blockchain.Blockchain
 	Wallet     wallet.Wallet
 	ServerP2P  ServerP2P
-	ServerHTTP ServerHTTP
+	Client     client.Server
 	Config     config.Config
 	UpToDate   bool
 	Persons    []person.Person
@@ -37,9 +38,7 @@ func CreateApp() *App {
 			connections: make(map[string]node.Node),
 			walletsBL:   make(map[string]struct{}),
 		},
-		ServerHTTP: ServerHTTP{
-			port: cfg.PortHTTP,
-		},
+		Client:   client.NewServer(cfg.PortServer, cfg.PortClient),
 		UpToDate: false,
 		Persons:  make([]person.Person, 25000),
 	}

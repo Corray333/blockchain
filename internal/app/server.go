@@ -26,10 +26,6 @@ type ServerP2P struct {
 	walletsBL   map[string]struct{}  // black list of wallets
 }
 
-type ServerHTTP struct {
-	port int
-}
-
 func (a *App) Run() {
 	go a.RunClient()
 	listener, err := net.Listen("tcp", helpers.GetOutboundIP()+":"+strconv.Itoa(a.ServerP2P.port))
@@ -38,6 +34,7 @@ func (a *App) Run() {
 		slog.Error("error while starting server:" + err.Error())
 		panic(err)
 	}
+	go a.Client.Run()
 	// go a.ConnectWithBootnodes()
 	for {
 		conn, err := listener.Accept()
