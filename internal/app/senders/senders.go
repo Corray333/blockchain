@@ -31,11 +31,11 @@ func SendTransaction(to string, tx blockchain.Transaction) error {
 		Timestamp time.Time `json:"timestamp"`
 	}{
 		Query:     "03",
-		PKH:       tx.GetOutput().GetPKH(),
-		Data:      tx.GetOutput().GetData(),
-		Sign:      tx.GetSign(),
-		PublicKey: tx.GetPublicKey(),
-		Timestamp: tx.GetTimestamp(),
+		PKH:       tx.Output.PKH,
+		Data:      tx.Output.Data,
+		Sign:      tx.Sign,
+		PublicKey: tx.PublicKey,
+		Timestamp: tx.Timestamp,
 	}
 	conn, err := net.Dial("tcp", to)
 	if err != nil {

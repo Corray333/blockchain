@@ -34,7 +34,6 @@ func (a *App) Run() {
 		slog.Error("error while starting server:" + err.Error())
 		panic(err)
 	}
-	go a.Client.Run()
 	// go a.ConnectWithBootnodes()
 	for {
 		conn, err := listener.Accept()
@@ -146,7 +145,7 @@ func (a *App) RunClient() {
 			pkh := [20]byte{}
 			copy(pkh[:], splitted[2])
 			tx := blockchain.NewTransaction(pkh, []byte(splitted[1]), wallet.GetPublicKey(), time.Now())
-			if err := tx.Sign(wallet.GetPrivateKey()); err != nil {
+			if err := tx.CreateSign(wallet.GetPrivateKey()); err != nil {
 				slog.Error(err.Error(), "type", "blockchain", "process", "create transaction")
 			}
 			if err := a.Blockchain.NewTransaction(tx); err != nil {

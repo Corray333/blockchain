@@ -86,7 +86,7 @@ func NewTransaction(bchain *blockchain.Blockchain, blackList map[string]struct{}
 		return fmt.Errorf("node is not up to date")
 	}
 	tx := blockchain.NewTransaction(query.PKH, query.Data, query.PublicKey, query.Timestamp)
-	tx.SetSign(query.Sign)
+	tx.Sign = query.Sign
 	if err := bchain.NewTransaction(tx); err != nil {
 		pkh := [20]byte{}
 		hash := sha256.Sum256(query.PublicKey)

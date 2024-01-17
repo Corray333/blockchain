@@ -4,6 +4,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+
+	"github.com/Corray333/blockchain/internal/client/handlers"
+	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
@@ -23,7 +26,9 @@ func (s Server) Run() {
 	go s.runClient()
 }
 func (s Server) runServer() {
-
+	r := chi.NewRouter()
+	r.Get("/transactions/last", handlers.GetLastTransaction)
+	panic(http.ListenAndServe("127.0.0.1:"+strconv.Itoa(s.portServer), r))
 }
 func (s Server) runClient() {
 	http.Handle("/", http.FileServer(http.Dir("../frontend/dist")))

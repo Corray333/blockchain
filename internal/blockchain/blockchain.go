@@ -40,7 +40,7 @@ func NewBlockchain() *Blockchain {
 func (b *Block) GetTransactionsString() string {
 	res := ""
 	for _, t := range b.transactions {
-		res += fmt.Sprintf("%x|%s|%x|%x|", t.output.pkh, t.output.data, t.publicKey, t.sign)
+		res += fmt.Sprintf("%x|%s|%x|%x|", t.Output.PKH, t.Output.Data, t.PublicKey, t.Sign)
 	}
 	return res
 }
@@ -58,9 +58,9 @@ func (b *Blockchain) PrintTransactions() {
 // Blockchain.NewTransaction creates a new transaction in transaction pool
 func (b *Blockchain) NewTransaction(tx Transaction) error {
 	hash := tx.Hash()
-	ok := secp256k1.VerifySignature(tx.publicKey, hash[:], tx.sign[:64])
+	ok := secp256k1.VerifySignature(tx.PublicKey, hash[:], tx.Sign[:64])
 	if !ok {
-		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.publicKey))
+		return errors.New("error while verifying transaction from " + fmt.Sprintf("%x", tx.PublicKey))
 	}
 	mu := sync.Mutex{}
 	mu.Lock()
@@ -78,7 +78,7 @@ func (b *Blockchain) CreateBlock() *Block {
 		prev:         b.blockList[len(b.blockList)-1],
 		root:         [32]byte{},
 		transactions: make([]Transaction, len(b.transactionPool)),
-		timestamp:    time.Now(),
+		Timestamp:    time.Now(),
 	}
 	copy(block.transactions, b.transactionPool)
 	b.transactionPool = []Transaction{}
@@ -96,13 +96,13 @@ type Block struct {
 	prev          [32]byte
 	root          [32]byte
 	transactions  []Transaction
-	timestamp     time.Time
+	Timestamp     time.Time
 	creatorAdress string
 	level         int
 }
 
 func (b Block) GetTimestamp() time.Time {
-	return b.timestamp
+	return b.Timestamp
 }
 
 func (b Block) GetLevel() int {
@@ -116,7 +116,7 @@ func (b Block) Save() error {
 	if err != nil {
 		return err
 	}
-	res := fmt.Sprintf("%x|%x|%d|%s|%d\n", b.prev, b.root, b.timestamp.UnixMicro(), b.creatorAdress, b.level)
+	res := fmt.Sprintf("%x|%x|%d|%s|%d\n", b.prev, b.root, b.Timestamp.UnixMicro(), b.creatorAdress, b.level)
 	// TODO: save transactions with compressed public keys
 	res += b.GetTransactionsString()
 	n, err := file.Write([]byte(res))
@@ -129,9 +129,9 @@ func (b Block) Save() error {
 	return nil
 }
 
-func LoadBlock(data []byte) (*Block, error) {
+func LoadBlock(Data []byte) (*Block, error) {
 	var block Block
-	splitted := strings.Split(string(data), "\n")
+	splitted := strings.Split(string(Data), "\n")
 	blockData := strings.Split(splitted[0], "|")
 	transactions := strings.Split(splitted[1], "|")
 	prev, err := hex.DecodeString(blockData[0])
@@ -148,7 +148,7 @@ func LoadBlock(data []byte) (*Block, error) {
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
-	block.timestamp = time.UnixMicro(microSeconds)
+	block.Timestamp = time.UnixMicro(microSeconds)
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
@@ -161,7 +161,7 @@ func LoadBlock(data []byte) (*Block, error) {
 	// TODO: load transactions
 	for i := 0; i < len(transactions)-1; i += 6 {
 		var transaction Transaction
-		pkh, err := hex.DecodeString(transactions[i+1])
+		PKH, err := hex.DecodeString(transactions[i+1])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 		}
@@ -173,19 +173,19 @@ func LoadBlock(data []byte) (*Block, error) {
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
-		sign, err := hex.DecodeString(transactions[i+5])
+		Sign, err := hex.DecodeString(transactions[i+5])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
-		copy(transaction.output.pkh[:], pkh)
-		transaction.output.data = []byte(transactions[i+3])
-		transaction.publicKey = make([]byte, 65)
-		transaction.sign = make([]byte, 64)
-		copy(transaction.publicKey[:], pub)
-		copy(transaction.sign[:], sign)
+		copy(transaction.Output.PKH[:], PKH)
+		transaction.Output.Data = []byte(transactions[i+3])
+		transaction.PublicKey = make([]byte, 65)
+		transaction.Sign = make([]byte, 64)
+		copy(transaction.PublicKey[:], pub)
+		copy(transaction.Sign[:], Sign)
 		block.transactions = append(block.transactions, transaction)
 	}
-	// TODO: check data format
+	// TODO: check Data format
 	return &block, nil
 }
 
@@ -208,7 +208,7 @@ func GetMerkleRoot(hashes [][32]byte) [32]byte {
 
 // Block.String turns block into a string, placing
 func (b Block) String() string {
-	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\ntimestamp: %s\ncreator: %s\n", b.prev[:], b.root[:], b.timestamp.String(), b.creatorAdress)
+	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\nTimestamp: %s\ncreator: %s\n", b.prev[:], b.root[:], b.Timestamp.String(), b.creatorAdress)
 }
 
 func (b Block) StringForHash() string {
@@ -230,84 +230,68 @@ func (b Block) Hash() [32]byte {
 	return sha256.Sum256([]byte(b.StringForHash()))
 }
 
-// Output structure represents a transaction output
+// Output structure represents a transaction Output
 type Output struct {
-	pkh  [20]byte
-	data []byte
+	PKH  [20]byte
+	Data []byte
 }
 
 func (o Output) GetPKH() [20]byte {
-	return o.pkh
+	return o.PKH
 }
 func (o Output) GetData() []byte {
-	return o.data
+	return o.Data
 }
 
 func (o Output) String() string {
-	return fmt.Sprintf("pkh: %x, data: %s", o.pkh, string(o.data))
+	return fmt.Sprintf("PKH: %x, Data: %s", o.PKH, string(o.Data))
 }
 
 // Transact structure represents a transaction in blockchain
 type Transaction struct {
-	output    Output
-	sign      []byte
-	publicKey []byte
-	timestamp time.Time
-}
-
-func (t Transaction) GetPublicKey() []byte {
-	return t.publicKey
-}
-func (t Transaction) GetSign() []byte {
-	return t.sign
-}
-func (t *Transaction) SetSign(sign []byte) {
-	t.sign = sign
-}
-func (t Transaction) GetOutput() Output {
-	return t.output
-}
-func (t Transaction) GetTimestamp() time.Time {
-	return t.timestamp
+	Output    Output
+	Sign      []byte
+	PublicKey []byte
+	Timestamp time.Time
 }
 
 // NewTransaction creates a new transaction
 //
-// pkh - public key hash of the receiver
+// # PKH - public key hash of the receiver
 //
-// hash - hash of the string made of pkh+data+timestamp
+// hash - hash of the string made of PKH+Data+Timestamp
 //
-// data - data of the transaction: marhsalled json
+// Data - Data of the transaction: marhsalled json
 //
-// sign - sign of the hash
+// # Sign - Sign of the hash
 //
-// publicKey - public key of the sender
-func NewTransaction(pkh [20]byte, data []byte, publicKey []byte, timestamp time.Time) Transaction {
+// PublicKey - public key of the sender
+func NewTransaction(PKH [20]byte, Data []byte, PublicKey []byte, Timestamp time.Time) Transaction {
 	return Transaction{
-		output: Output{
-			pkh:  pkh,
-			data: data,
+		Output: Output{
+			PKH:  PKH,
+			Data: Data,
 		},
-		publicKey: publicKey,
-		timestamp: timestamp,
+		PublicKey: PublicKey,
+		Timestamp: Timestamp,
 	}
 }
 
 func (tx Transaction) String() string {
-	return fmt.Sprintf("output: %s\nsign: %x\npublic key: %x\ntimestamp: %s", tx.output.String(), tx.sign, tx.publicKey[:], tx.timestamp.String())
+	return fmt.Sprintf("Output: %s\nSign: %x\npublic key: %x\nTimestamp: %s", tx.Output.String(), tx.Sign, tx.PublicKey[:], tx.Timestamp.String())
 }
 
 // Transaction.Hash returns the hash of the transaction
 func (tx Transaction) Hash() [32]byte {
-	return sha256.Sum256([]byte(string(tx.output.pkh[:]) + string(tx.output.data) + tx.timestamp.Format(time.RFC3339Nano)))
+	return sha256.Sum256([]byte(string(tx.Output.PKH[:]) + string(tx.Output.Data) + tx.Timestamp.Format(time.RFC3339Nano)))
 }
 
-func (tx *Transaction) Sign(private []byte) error {
+func (tx *Transaction) CreateSign(private []byte) error {
 	hash := tx.Hash()
-	sign, err := secp256k1.Sign(hash[:], private)
+	Sign, err := secp256k1.Sign(hash[:], private)
 	if err != nil {
-		return fmt.Errorf("error while signing transaction: %s", err.Error())
+		return fmt.Errorf("error while Signing transaction: %s", err.Error())
 	}
-	tx.sign = sign
+	tx.Sign = Sign
 	return nil
 }
