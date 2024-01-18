@@ -23,11 +23,13 @@ func NewServer(server, client int) Server {
 
 func (s Server) Run() {
 	go s.runServer()
-	go s.runClient()
+	s.runClient()
 }
 func (s Server) runServer() {
 	r := chi.NewRouter()
-	r.Get("/transactions/last", handlers.GetLastTransaction)
+	r.Get("/blocks/last", handlers.GetLastBlock)
+	r.Get("/blocks/none", handlers.GetCurrentBlock)
+	r.Get("/blocks/{block}/transactions/{transaction}", handlers.GetTransactionByBlockAndHash)
 	panic(http.ListenAndServe("127.0.0.1:"+strconv.Itoa(s.portServer), r))
 }
 func (s Server) runClient() {

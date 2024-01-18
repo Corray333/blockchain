@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
-	go app.CreateApp().Run()
-	go client.NewServer(app.Application.Config.PortServer, app.Application.Config.PortClient).Run()
+	app.CreateApp().Run()
+	println("Test")
+	client.NewServer(app.Application.Config.PortServer, app.Application.Config.PortClient).Run()
 }

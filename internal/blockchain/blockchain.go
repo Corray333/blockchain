@@ -18,37 +18,37 @@ import (
 
 // Blockchain structure represents a blockchain
 type Blockchain struct {
-	blockList       [][32]byte
-	transactionPool []Transaction
+	BlockList       [][32]byte
+	TransactionPool []Transaction
 }
 
 func (b Blockchain) GetLastBlock() [32]byte {
-	return b.blockList[len(b.blockList)-1]
+	return b.BlockList[len(b.BlockList)-1]
 }
 
 // NewBlockchain returnc a new blockchain
 func NewBlockchain() *Blockchain {
 	return &Blockchain{
-		blockList: [][32]byte{
+		BlockList: [][32]byte{
 			sha256.Sum256(nil),
 		},
-		transactionPool: []Transaction{},
+		TransactionPool: []Transaction{},
 	}
 }
 
-// Blockchain.GetTransactionsString returns a string with all transactions
+// Blockchain.GetTransactionsString returns a string with all Transactions
 func (b *Block) GetTransactionsString() string {
 	res := ""
-	for _, t := range b.transactions {
+	for _, t := range b.Transactions {
 		res += fmt.Sprintf("%x|%s|%x|%x|", t.Output.PKH, t.Output.Data, t.PublicKey, t.Sign)
 	}
 	return res
 }
 
-// Blockchain.PrintTransactions prints all transactions in transaction pool
+// Blockchain.PrintTransactions prints all Transactions in transaction pool
 func (b *Blockchain) PrintTransactions() {
 	fmt.Println("====================\tTransactions\t====================")
-	for i, t := range b.transactionPool {
+	for i, t := range b.TransactionPool {
 		fmt.Printf("====================\tTransaction %d\t====================\n", i)
 		fmt.Println(t.String())
 	}
@@ -64,8 +64,8 @@ func (b *Blockchain) NewTransaction(tx Transaction) error {
 	}
 	mu := sync.Mutex{}
 	mu.Lock()
-	b.transactionPool = append(b.transactionPool, tx)
-	if len(b.transactionPool) > 2000 {
+	b.TransactionPool = append(b.TransactionPool, tx)
+	if len(b.TransactionPool) > 2000 {
 		b.CreateBlock()
 	}
 	mu.Unlock()
@@ -75,30 +75,30 @@ func (b *Blockchain) NewTransaction(tx Transaction) error {
 // CreateBlock creates a new block
 func (b *Blockchain) CreateBlock() *Block {
 	block := &Block{
-		prev:         b.blockList[len(b.blockList)-1],
-		root:         [32]byte{},
-		transactions: make([]Transaction, len(b.transactionPool)),
+		Prev:         b.BlockList[len(b.BlockList)-1],
+		Root:         [32]byte{},
+		Transactions: make([]Transaction, len(b.TransactionPool)),
 		Timestamp:    time.Now(),
 	}
-	copy(block.transactions, b.transactionPool)
-	b.transactionPool = []Transaction{}
-	hashes := make([][32]byte, len(block.transactions))
+	copy(block.Transactions, b.TransactionPool)
+	b.TransactionPool = []Transaction{}
+	hashes := make([][32]byte, len(block.Transactions))
 	for i := range hashes {
-		hashes[i] = block.transactions[i].Hash()
+		hashes[i] = block.Transactions[i].Hash()
 	}
-	block.root = GetMerkleRoot(hashes)
-	block.creatorAdress = wallet.GetAddress()
+	block.Root = GetMerkleRoot(hashes)
+	block.CreatorAddress = wallet.GetAddress()
 	return block
 }
 
 // Block structure represents a block in a blockchain
 type Block struct {
-	prev          [32]byte
-	root          [32]byte
-	transactions  []Transaction
-	Timestamp     time.Time
-	creatorAdress string
-	level         int
+	Prev           [32]byte
+	Root           [32]byte
+	Transactions   []Transaction
+	Timestamp      time.Time
+	CreatorAddress string
+	Level          int
 }
 
 func (b Block) GetTimestamp() time.Time {
@@ -106,7 +106,7 @@ func (b Block) GetTimestamp() time.Time {
 }
 
 func (b Block) GetLevel() int {
-	return b.level
+	return b.Level
 }
 
 // Block.Save function saves a block in store folder
@@ -116,8 +116,8 @@ func (b Block) Save() error {
 	if err != nil {
 		return err
 	}
-	res := fmt.Sprintf("%x|%x|%d|%s|%d\n", b.prev, b.root, b.Timestamp.UnixMicro(), b.creatorAdress, b.level)
-	// TODO: save transactions with compressed public keys
+	res := fmt.Sprintf("%x|%x|%d|%s|%d\n", b.Prev, b.Root, b.Timestamp.UnixMicro(), b.CreatorAddress, b.Level)
+	// TODO: save Transactions with compressed public keys
 	res += b.GetTransactionsString()
 	n, err := file.Write([]byte(res))
 	if err != nil {
@@ -133,17 +133,17 @@ func LoadBlock(Data []byte) (*Block, error) {
 	var block Block
 	splitted := strings.Split(string(Data), "\n")
 	blockData := strings.Split(splitted[0], "|")
-	transactions := strings.Split(splitted[1], "|")
-	prev, err := hex.DecodeString(blockData[0])
+	Transactions := strings.Split(splitted[1], "|")
+	Prev, err := hex.DecodeString(blockData[0])
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
-	copy(block.prev[:], prev)
-	root, err := hex.DecodeString(blockData[1])
+	copy(block.Prev[:], Prev)
+	Root, err := hex.DecodeString(blockData[1])
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
-	copy(block.root[:], root)
+	copy(block.Root[:], Root)
 	microSeconds, err := strconv.ParseInt(blockData[2], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
@@ -152,44 +152,44 @@ func LoadBlock(Data []byte) (*Block, error) {
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
-	block.creatorAdress = blockData[3]
-	block.level, err = strconv.Atoi(blockData[4])
+	block.CreatorAddress = blockData[3]
+	block.Level, err = strconv.Atoi(blockData[4])
 	if err != nil {
 		return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 	}
-	block.transactions = []Transaction{}
-	// TODO: load transactions
-	for i := 0; i < len(transactions)-1; i += 6 {
+	block.Transactions = []Transaction{}
+	// TODO: load Transactions
+	for i := 0; i < len(Transactions)-1; i += 6 {
 		var transaction Transaction
-		PKH, err := hex.DecodeString(transactions[i+1])
+		PKH, err := hex.DecodeString(Transactions[i+1])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block: %s`, err.Error())
 		}
-		hash, err := hex.DecodeString(transactions[i+2])
+		hash, err := hex.DecodeString(Transactions[i+2])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
-		pub, err := hex.DecodeString(transactions[i+4])
+		pub, err := hex.DecodeString(Transactions[i+4])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
-		Sign, err := hex.DecodeString(transactions[i+5])
+		Sign, err := hex.DecodeString(Transactions[i+5])
 		if err != nil {
 			return nil, fmt.Errorf(`error while loading block with hash "%x": %s`, hash, err.Error())
 		}
 		copy(transaction.Output.PKH[:], PKH)
-		transaction.Output.Data = []byte(transactions[i+3])
+		transaction.Output.Data = Transactions[i+3]
 		transaction.PublicKey = make([]byte, 65)
 		transaction.Sign = make([]byte, 64)
 		copy(transaction.PublicKey[:], pub)
 		copy(transaction.Sign[:], Sign)
-		block.transactions = append(block.transactions, transaction)
+		block.Transactions = append(block.Transactions, transaction)
 	}
 	// TODO: check Data format
 	return &block, nil
 }
 
-// GetMerkleRoot returns the merkle root got by transactions hashes
+// GetMerkleRoot returns the merkle Root got by Transactions hashes
 func GetMerkleRoot(hashes [][32]byte) [32]byte {
 	if len(hashes) == 0 {
 		return [32]byte{}
@@ -208,17 +208,17 @@ func GetMerkleRoot(hashes [][32]byte) [32]byte {
 
 // Block.String turns block into a string, placing
 func (b Block) String() string {
-	return fmt.Sprintf("prev hash: %x\nmerkle root: %x\nTimestamp: %s\ncreator: %s\n", b.prev[:], b.root[:], b.Timestamp.String(), b.creatorAdress)
+	return fmt.Sprintf("Prev hash: %x\nmerkle Root: %x\nTimestamp: %s\ncreator: %s\n", b.Prev[:], b.Root[:], b.Timestamp.String(), b.CreatorAddress)
 }
 
 func (b Block) StringForHash() string {
-	return fmt.Sprintf("%x%x%s", b.prev[:], b.root[:], b.creatorAdress)
+	return fmt.Sprintf("%x%x%s", b.Prev[:], b.Root[:], b.CreatorAddress)
 }
 
-// Block.PrintTransactions prints all transactions in transaction pool
+// Block.PrintTransactions prints all Transactions in transaction pool
 func (b *Block) PrintTransactions() {
 	fmt.Println("====================\tTransactions\t====================")
-	for i, t := range b.transactions {
+	for i, t := range b.Transactions {
 		fmt.Printf("====================\tTransaction %d\t====================\n", i)
 		fmt.Println(t.String())
 	}
@@ -233,13 +233,13 @@ func (b Block) Hash() [32]byte {
 // Output structure represents a transaction Output
 type Output struct {
 	PKH  [20]byte
-	Data []byte
+	Data string
 }
 
 func (o Output) GetPKH() [20]byte {
 	return o.PKH
 }
-func (o Output) GetData() []byte {
+func (o Output) GetData() string {
 	return o.Data
 }
 
@@ -270,7 +270,7 @@ func NewTransaction(PKH [20]byte, Data []byte, PublicKey []byte, Timestamp time.
 	return Transaction{
 		Output: Output{
 			PKH:  PKH,
-			Data: Data,
+			Data: string(Data),
 		},
 		PublicKey: PublicKey,
 		Timestamp: Timestamp,

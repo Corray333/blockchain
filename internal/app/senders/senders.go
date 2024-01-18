@@ -25,7 +25,7 @@ func SendTransaction(to string, tx blockchain.Transaction) error {
 	query := struct {
 		Query     string    `json:"query"`
 		PKH       [20]byte  `json:"pkh"`
-		Data      []byte    `json:"data"`
+		Data      string    `json:"data"`
 		Sign      []byte    `json:"sign"`
 		PublicKey []byte    `json:"publicKey"`
 		Timestamp time.Time `json:"timestamp"`
