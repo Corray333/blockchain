@@ -94,6 +94,7 @@ func Print() {
 
 // GenerateSecretNumberBySeedPhrase generates a secret number from the seed phrase
 func GenerateSecretNumberBySeedPhrase(phrase string) string {
+	phrase = strings.TrimSpace(phrase)
 	seed := ""
 	recPhrase := strings.Split(phrase, " ")
 	f, err := os.ReadFile("../configs/wordlist.txt")

@@ -4,3 +4,8 @@
     box-sizing: border-box;
     font-family: "Ubuntu", sans-serif;
 }
+
+:root{
+    --accent-color: #FFB03A;
+    --black-color: #1b1b1b;
+}

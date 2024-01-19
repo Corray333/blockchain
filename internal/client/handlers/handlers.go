@@ -3,11 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/Corray333/blockchain/internal/app"
 	"github.com/Corray333/blockchain/internal/blockchain"
+	"github.com/Corray333/blockchain/internal/wallet"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -70,4 +72,18 @@ func GetLastBlock(w http.ResponseWriter, r *http.Request) {
 }
 func GetCurrentBlock(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(*app.Application.Blockchain.CreateBlock())
+}
+func LogIn(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	slog.Info("Log in")
+	req := struct {
+		RecoveryPhrase string `json:"recoveryPhrase"`
+	}{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	slog.Info(req.RecoveryPhrase)
+	slog.Info(wallet.GenerateSecretNumberBySeedPhrase(req.RecoveryPhrase))
 }
