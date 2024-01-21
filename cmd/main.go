@@ -1,12 +1,11 @@
 package main
 
 import (
-	"github.com/Corray333/blockchain/internal/app"
 	"github.com/Corray333/blockchain/internal/client"
+	"github.com/Corray333/blockchain/internal/config"
 )
 
 func main() {
-	app.CreateApp().Run()
-	println("Test")
-	client.NewServer(app.Application.Config.PortServer, app.Application.Config.PortClient).Run()
+	config.LoadConfig()
+	client.NewServer(config.CFG.PortServer, config.CFG.PortClient).Run()
 }

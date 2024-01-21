@@ -1,6 +1,5 @@
 <template>
-  <router-link to="/">Home</router-link>
-  <router-link to="/login">LogIn</router-link>
+  <NavBar/>
   <router-view/>
 </template>
 
@@ -9,4 +8,6 @@
 </style>
 
 <script setup>
+import NavBar from './components/NavBar.vue'
+
 </script>

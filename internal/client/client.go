@@ -34,7 +34,7 @@ func (s Server) runServer() {
 	r.Get("/blocks/{block}/transactions/{transaction}", handlers.GetTransactionByBlockAndHash)
 	handler := cors.Default().Handler(r)
 	handler = cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3002"}, // Allow only this origin
+		AllowedOrigins:   []string{"http://localhost:3002", "http://localhost:8080"}, // Allow only this origin
 		AllowCredentials: true,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},

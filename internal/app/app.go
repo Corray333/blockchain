@@ -8,7 +8,6 @@ import (
 	"github.com/Corray333/blockchain/internal/config"
 	"github.com/Corray333/blockchain/internal/person"
 	"github.com/Corray333/blockchain/internal/wallet"
-	"github.com/joho/godotenv"
 )
 
 var Application *App
@@ -22,13 +21,17 @@ type App struct {
 	Persons    []person.Person
 }
 
-func CreateApp() *App {
-	godotenv.Load("../.env")
-	wallet.InitializeWallet()
+func CreateApp(recoveryPhrase string) *App {
+	// godotenv.Load("../.env")
+	err := wallet.InitializeWallet(recoveryPhrase)
+	if err != nil {
+		slog.Error(err.Error(), "process", "wallet")
+		return nil
+	}
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		slog.Error(err.Error(), "process", "config")
-		panic(err)
+		return nil
 	}
 
 	Application = &App{

@@ -9,7 +9,6 @@ import (
 
 	"github.com/Corray333/blockchain/internal/app"
 	"github.com/Corray333/blockchain/internal/blockchain"
-	"github.com/Corray333/blockchain/internal/wallet"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -84,6 +83,11 @@ func LogIn(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	slog.Info(req.RecoveryPhrase)
-	slog.Info(wallet.GenerateSecretNumberBySeedPhrase(req.RecoveryPhrase))
+	app := app.CreateApp(req.RecoveryPhrase)
+	if app == nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	app.Run()
+	w.WriteHeader(http.StatusOK)
 }

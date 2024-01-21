@@ -18,6 +18,8 @@ type Config struct {
 	BootNodes  []string `yaml:"boot_nodes"`
 }
 
+var CFG *Config
+
 func LoadConfig() (*Config, error) {
 
 	if err := godotenv.Load("../.env"); err != nil {
@@ -50,6 +52,6 @@ func LoadConfig() (*Config, error) {
 		)
 	}
 	slog.SetDefault(log)
-
+	CFG = &config
 	return &config, nil
 }
